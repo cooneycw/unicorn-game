@@ -7,98 +7,65 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Godot
+      - name: Download Godot Headless
         run: |
-          $url = "https://github.com/godotengine/godot/releases/download/3.5.3-stable/Godot_v3.5.3-stable_win64.exe.zip"
-          Invoke-WebRequest -Uri $url -OutFile godot.zip
-          Expand-Archive -Path godot.zip -DestinationPath .
-          Rename-Item "Godot_v3.5.3-stable_win64.exe" godot.exe
+          curl -L -o godot.zip "https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip"
+          unzip godot.zip
+          chmod +x Godot_v4.3-stable_linux.x86_64
+          mv Godot_v4.3-stable_linux.x86_64 godot
 
       - name: Install Godot Export Templates
         run: |
-          $url = "https://github.com/godotengine/godot/releases/download/3.5.3-stable/Godot_v3.5.3-stable_export_templates.tpz"
-          Invoke-WebRequest -Uri $url -OutFile export_templates.tpz
-          $templateDir = "$env:APPDATA\Godot\templates\3.5.3.stable"
-          New-Item -ItemType Directory -Force -Path $templateDir
-          Expand-Archive -Path export_templates.tpz -DestinationPath "$env:TEMP\godot_templates"
-          Copy-Item -Recurse "$env:TEMP\godot_templates\templates\*" $templateDir
-
-      - name: Import Project Assets
-        run: |
-          mkdir -p build/windows
-          .\godot.exe --no-window --path . --editor --quit
-        continue-on-error: true
+          curl -L -o export_templates.tpz "https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz"
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+          unzip -o export_templates.tpz -d /tmp/godot_templates
+          cp /tmp/godot_templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
 
       - name: Export for Windows
         run: |
-          .\godot.exe --no-window --path . --export "Windows Desktop" "build/windows/UnicornGame.exe"
-          if (-not (Test-Path "build/windows/UnicornGame.exe")) { exit 1 }
+          mkdir -p build/windows
+          ./godot --headless --export-release "Windows Desktop" build/windows/UnicornGame.exe
+          test -f build/windows/UnicornGame.exe
 
-      - name: Install WiX Toolset
-        run: |
-          choco install wixtoolset -y
+      - name: Install msitools
+        run: sudo apt-get install -y msitools
 
       - name: Create WiX Product File
         run: |
-          @'
+          cat > build/windows/Product.wxs << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
             <Product Id="*" Name="Unicorn Game" Language="1033" Version="1.0.0.0" Manufacturer="Unicorn Game" UpgradeCode="12345678-1234-1234-1234-123456789012">
               <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
               <MajorUpgrade DowngradeErrorMessage="A newer version of Unicorn Game is already installed." />
-              <MediaTemplate />
-
+              <MediaTemplate EmbedCab="yes" />
               <Feature Id="ProductFeature" Title="Unicorn Game" Level="1">
                 <ComponentRef Id="MainExecutable" />
-                <ComponentRef Id="StartMenuShortcut" />
               </Feature>
-
               <Directory Id="TARGETDIR" Name="SourceDir">
                 <Directory Id="ProgramFilesFolder">
-                  <Directory Id="INSTALLFOLDER" Name="Unicorn Game" />
+                  <Directory Id="INSTALLFOLDER" Name="Unicorn Game">
+                    <Component Id="MainExecutable" Guid="12345678-1234-1234-1234-000000000001">
+                      <File Id="GameExecutable" Source="UnicornGame.exe" KeyPath="yes" />
+                    </Component>
+                  </Directory>
                 </Directory>
-                <Directory Id="ProgramMenuFolder">
-                  <Directory Id="ApplicationProgramsFolder" Name="Unicorn Game" />
-                </Directory>
-                <Directory Id="DesktopFolder" Name="Desktop" />
               </Directory>
-
-              <DirectoryRef Id="INSTALLFOLDER">
-                <Component Id="MainExecutable" Guid="12345678-1234-1234-1234-000000000001">
-                  <File Id="GameExecutable" Source="build/windows/UnicornGame.exe" KeyPath="yes" />
-                </Component>
-              </DirectoryRef>
-
-              <DirectoryRef Id="ApplicationProgramsFolder">
-                <Component Id="StartMenuShortcut" Guid="12345678-1234-1234-1234-000000000002">
-                  <Shortcut Id="ApplicationStartMenuShortcut" Name="Unicorn Game" Description="A magical unicorn pet game" Target="[INSTALLFOLDER]UnicornGame.exe" WorkingDirectory="INSTALLFOLDER" />
-                  <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
-                  <RegistryValue Root="HKCU" Key="Software\Unicorn Game" Name="installed" Type="integer" Value="1" KeyPath="yes" />
-                </Component>
-              </DirectoryRef>
-
-              <DirectoryRef Id="DesktopFolder">
-                <Component Id="DesktopShortcut" Guid="12345678-1234-1234-1234-000000000003">
-                  <Shortcut Id="DesktopShortcut" Name="Unicorn Game" Description="A magical unicorn pet game" Target="[INSTALLFOLDER]UnicornGame.exe" WorkingDirectory="INSTALLFOLDER" />
-                  <RegistryValue Root="HKCU" Key="Software\Unicorn Game" Name="desktopshortcut" Type="integer" Value="1" KeyPath="yes" />
-                </Component>
-              </DirectoryRef>
             </Product>
           </Wix>
-          '@ | Out-File -Encoding UTF8 build/windows/Product.wxs
+          EOF
 
       - name: Build MSI Installer
         run: |
           cd build/windows
-          candle.exe -o obj\ Product.wxs
-          light.exe -o UnicornGame.msi obj\Product.wixobj
+          wixl -o UnicornGame.msi Product.wxs
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4

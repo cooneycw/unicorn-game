@@ -16,25 +16,21 @@ jobs:
 
       - name: Download Godot
         run: |
-          curl -L -o godot.zip "https://github.com/godotengine/godot/releases/download/3.5.3-stable/Godot_v3.5.3-stable_osx.universal.zip"
+          curl -L -o godot.zip "https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_macos.universal.zip"
           unzip godot.zip
 
       - name: Install Godot Export Templates
         run: |
-          curl -L -o export_templates.tpz "https://github.com/godotengine/godot/releases/download/3.5.3-stable/Godot_v3.5.3-stable_export_templates.tpz"
-          mkdir -p ~/Library/Application\ Support/Godot/templates/3.5.3.stable
+          curl -L -o export_templates.tpz "https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz"
+          mkdir -p ~/Library/Application\ Support/Godot/export_templates/4.3.stable
           unzip -o export_templates.tpz -d /tmp/godot_templates
-          cp /tmp/godot_templates/templates/* ~/Library/Application\ Support/Godot/templates/3.5.3.stable/
-
-      - name: Import Project Assets
-        run: |
-          chmod +x Godot.app/Contents/MacOS/Godot
-          ./Godot.app/Contents/MacOS/Godot --no-window --path . --editor --quit || true
+          cp /tmp/godot_templates/templates/* ~/Library/Application\ Support/Godot/export_templates/4.3.stable/
 
       - name: Export for macOS
         run: |
           mkdir -p build/macos
-          ./Godot.app/Contents/MacOS/Godot --no-window --path . --export "Mac OSX" "build/macos/UnicornGame.zip"
+          chmod +x Godot.app/Contents/MacOS/Godot
+          ./Godot.app/Contents/MacOS/Godot --headless --export-release "macOS" build/macos/UnicornGame.zip
           test -f build/macos/UnicornGame.zip
 
       - name: Create DMG
@@ -44,7 +40,6 @@ jobs:
           mkdir -p UnicornGame-DMG
           cp -r UnicornGame.app UnicornGame-DMG/
           ln -s /Applications UnicornGame-DMG/Applications
-
           hdiutil create -volname "Unicorn Game" -srcfolder UnicornGame-DMG -ov -format UDZO UnicornGame.dmg
 
       - name: Upload Artifacts

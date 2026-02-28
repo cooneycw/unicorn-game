@@ -3,7 +3,7 @@
 ; but it is possible to edit it manually using a text editor if you are careful.
 ; Format syntax: https://docs.godotengine.org/en/stable/tutorials/misc/ini.html
 
-config_version=4
+config_version=5
 
 _global_script_classes=[ {
 "base": "Node",
