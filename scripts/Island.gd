@@ -202,6 +202,9 @@ func _action_rest():
 	_show_feedback("%s is resting... zzz" % _get_selected_pet_name())
 
 func _go_back():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
 func _input(event):
