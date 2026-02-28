@@ -2,6 +2,7 @@ extends Node3D
 
 # Vet Clinic scene — healing costs coins, keyboard controls
 var game_manager
+var audio_manager
 var selected_pet_id = null
 var pet_list = []  # List of pet IDs
 var selected_pet_index = 0
@@ -10,6 +11,7 @@ var _coins_label: Label
 
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
+	audio_manager = get_tree().root.get_node_or_null("AudioManager")
 
 	_create_clinic_environment()
 	_create_ui()
@@ -147,6 +149,8 @@ func _heal_pet():
 			pet_info["name"],
 			pet_info["health"]
 		]
+		if audio_manager:
+			audio_manager.play_sfx("heal")
 
 		var pet_text = get_node("UI/Pet_%d" % selected_pet_id)
 		pet_text.text = "> %s (%s) - Health: %d/100" % [pet_info["name"], pet_info["type"], pet_info["health"]]
