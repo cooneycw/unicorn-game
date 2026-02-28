@@ -56,7 +56,7 @@ jobs:
           path: build/windows/
 
       - name: Install WiX Toolset
-        run: dotnet tool install --global wix
+        run: dotnet tool install --global wix --version 6.0.2
 
       - name: Create WiX Product File
         shell: bash
@@ -64,7 +64,7 @@ jobs:
           cat > build/windows/Product.wxs << 'EOF'
           <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
             <Package Name="Unicorn Game" Version="1.0.0.0" Manufacturer="Unicorn Game"
-                     UpgradeCode="12345678-1234-1234-1234-123456789012">
+                     UpgradeCode="DF42CC28-349B-44C3-8ACB-F435AA5715E1">
               <MajorUpgrade DowngradeErrorMessage="A newer version of Unicorn Game is already installed." />
               <MediaTemplate EmbedCab="yes" />
               <Feature Id="ProductFeature">
@@ -76,7 +76,7 @@ jobs:
                 <Directory Id="INSTALLFOLDER" Name="UnicornGame" />
               </StandardDirectory>
               <StandardDirectory Id="ProgramMenuFolder">
-                <Directory Id="StartMenuFolder" Name="Unicorn Game" />
+                <Directory Id="AppStartMenuFolder" Name="Unicorn Game" />
               </StandardDirectory>
               <StandardDirectory Id="DesktopFolder" />
             </Fragment>
@@ -91,7 +91,7 @@ jobs:
                             Target="[INSTALLFOLDER]UnicornGame.exe"
                             WorkingDirectory="INSTALLFOLDER" />
                   <Shortcut Id="StartMenuShortcut"
-                            Directory="StartMenuFolder"
+                            Directory="AppStartMenuFolder"
                             Name="Unicorn Game"
                             Advertise="no"
                             Target="[INSTALLFOLDER]UnicornGame.exe"
@@ -100,8 +100,8 @@ jobs:
                 <Component Directory="INSTALLFOLDER">
                   <File Source="UnicornGame.pck" />
                 </Component>
-                <Component Directory="StartMenuFolder">
-                  <RemoveFolder Id="RemoveStartMenuFolder" On="uninstall" />
+                <Component Directory="AppStartMenuFolder">
+                  <RemoveFolder Id="RemoveAppStartMenuFolder" On="uninstall" />
                   <RegistryValue Root="HKCU" Key="Software\UnicornGame"
                                  Name="startmenu" Type="integer" Value="1"
                                  KeyPath="yes" />
@@ -125,7 +125,7 @@ jobs:
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: build/windows/UnicornGame.msi
         env:
