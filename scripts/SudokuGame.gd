@@ -1,12 +1,15 @@
 extends Node2D
 
-# 3x3 Sudoku — fill grid so each row and column has 1, 2, 3
-# Arrow keys to navigate, 1/2/3 to fill, H for hint, Backspace to clear
+# Sudoku — 6 auto-advancing levels
+# L1-3: 3x3 Latin square (5/4/3 givens)
+# L4-6: 4x4 Latin square (10/8/6 givens)
+# Advance: Complete puzzle without using any hints
 
 var game_manager
 var audio_manager
 
 # Grid state
+var _grid_size: int = 3
 var _solution: Array = []
 var _puzzle: Array = []
 var _player_grid: Array = []
@@ -19,9 +22,11 @@ var _puzzles_completed: int = 0
 var _coins_earned: int = 0
 var _hints_used: int = 0
 var _total_hints_session: int = 0
+var _level: int = 1
 
 # UI
 var _status_label: Label
+var _level_label: Label
 var _info_label: Label
 var _feedback_label: Label
 var _feedback_timer: float = 0.0
@@ -30,12 +35,24 @@ var _screen_width: float = 1152.0
 var _screen_height: float = 648.0
 
 # Visual constants
-const CELL_SIZE: float = 100.0
+var CELL_SIZE: float = 100.0
 const CELL_GAP: float = 6.0
+
+const LEVEL_NAMES: Array = [
+	"",
+	"3x3 Easy (5 given)",
+	"3x3 Medium (4 given)",
+	"3x3 Hard (3 given)",
+	"4x4 Easy (10 given)",
+	"4x4 Medium (8 given)",
+	"4x4 Hard (6 given)",
+]
 
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
+
+	_level = game_manager.get_game_level("sudoku")
 
 	var viewport_size = get_viewport().get_visible_rect().size
 	if viewport_size.x > 0:
@@ -55,11 +72,18 @@ func _build_ui():
 
 	# Title
 	var title = Label.new()
-	title.text = "SUDOKU PUZZLE (3x3)"
+	title.text = "SUDOKU PUZZLE"
 	title.position = Vector2(15, 10)
 	title.add_theme_font_size_override("font_size", 26)
 	title.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
 	add_child(title)
+
+	# Level display
+	_level_label = Label.new()
+	_level_label.position = Vector2(250, 14)
+	_level_label.add_theme_font_size_override("font_size", 18)
+	_level_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	add_child(_level_label)
 
 	# Status
 	_status_label = Label.new()
@@ -73,7 +97,6 @@ func _build_ui():
 	_info_label.position = Vector2(15, _screen_height - 35)
 	_info_label.add_theme_font_size_override("font_size", 12)
 	_info_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	_info_label.text = "Arrows: move | 1-3: place number | Backspace: clear | H: hint | SPACE: next puzzle | ESC: back"
 	add_child(_info_label)
 
 	# Feedback
@@ -82,43 +105,63 @@ func _build_ui():
 	_feedback_label.add_theme_font_size_override("font_size", 16)
 	add_child(_feedback_label)
 
-	_update_status()
+	_update_labels()
 
-func _update_status():
+func _update_labels():
+	_level_label.text = "Level %d: %s" % [_level, LEVEL_NAMES[_level]]
 	_status_label.text = "Puzzles: %d | Coins: +%d | Hints: %d" % [_puzzles_completed, _coins_earned, _hints_used]
+	if _grid_size == 3:
+		_info_label.text = "Arrows: move | 1-3: place | Backspace: clear | H: hint | SPACE: next | ESC: back"
+	else:
+		_info_label.text = "Arrows: move | 1-4: place | Backspace: clear | H: hint | SPACE: next | ESC: back"
+
+func _get_level_config() -> Dictionary:
+	match _level:
+		1: return {"size": 3, "givens": 5}
+		2: return {"size": 3, "givens": 4}
+		3: return {"size": 3, "givens": 3}
+		4: return {"size": 4, "givens": 10}
+		5: return {"size": 4, "givens": 8}
+		6: return {"size": 4, "givens": 6}
+		_: return {"size": 3, "givens": 5}
 
 func _generate_puzzle():
 	_game_active = true
 	_hints_used = 0
 
-	# Generate a valid 3x3 Latin square
-	var row1 = [1, 2, 3]
-	row1.shuffle()
+	var config = _get_level_config()
+	_grid_size = config["size"]
+	var num_given = config["givens"]
 
-	var valid_row2s = _get_valid_rows(row1, [])
-	var row2 = valid_row2s[randi() % valid_row2s.size()]
+	# Adjust cell size for 4x4
+	if _grid_size == 4:
+		CELL_SIZE = 80.0
+	else:
+		CELL_SIZE = 100.0
 
-	var valid_row3s = _get_valid_rows(row1, row2)
-	var row3 = valid_row3s[0]
+	# Generate Latin square
+	if _grid_size == 3:
+		_generate_3x3_solution()
+	else:
+		_generate_4x4_solution()
 
-	_solution = [row1.duplicate(), row2.duplicate(), row3.duplicate()]
-
-	# Remove some cells (leave 3-5 given out of 9)
-	var num_given = randi_range(3, 5)
+	# Build puzzle by removing cells
 	_puzzle = []
 	_player_grid = []
 	_locked = []
 
 	var all_positions: Array = []
-	for r in range(3):
-		for c in range(3):
+	for r in range(_grid_size):
+		_puzzle.append([])
+		_player_grid.append([])
+		_locked.append([])
+		for c in range(_grid_size):
+			_puzzle[r].append(0)
+			_player_grid[r].append(0)
+			_locked[r].append(false)
 			all_positions.append(Vector2i(r, c))
-	all_positions.shuffle()
 
-	for r in range(3):
-		_puzzle.append([0, 0, 0])
-		_player_grid.append([0, 0, 0])
-		_locked.append([false, false, false])
+	all_positions.shuffle()
 
 	for i in range(num_given):
 		var pos = all_positions[i]
@@ -128,8 +171,21 @@ func _generate_puzzle():
 
 	cursor_x = 0
 	cursor_y = 0
+	_update_labels()
 
-func _get_valid_rows(row1: Array, row2: Array) -> Array:
+func _generate_3x3_solution():
+	var row1 = [1, 2, 3]
+	row1.shuffle()
+
+	var valid_row2s = _get_valid_rows_3(row1, [])
+	var row2 = valid_row2s[randi() % valid_row2s.size()]
+
+	var valid_row3s = _get_valid_rows_3(row1, row2)
+	var row3 = valid_row3s[0]
+
+	_solution = [row1.duplicate(), row2.duplicate(), row3.duplicate()]
+
+func _get_valid_rows_3(row1: Array, row2: Array) -> Array:
 	var perms = [[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]
 	var valid: Array = []
 	for perm in perms:
@@ -145,26 +201,75 @@ func _get_valid_rows(row1: Array, row2: Array) -> Array:
 			valid.append(perm)
 	return valid
 
+func _generate_4x4_solution():
+	# Generate a valid 4x4 Latin square using backtracking-friendly approach
+	var rows: Array = []
+
+	# Row 1: random permutation
+	var row1 = [1, 2, 3, 4]
+	row1.shuffle()
+	rows.append(row1)
+
+	# Row 2-4: find valid rows by filtering permutations
+	var all_perms_4 = _get_all_permutations_4()
+
+	for _row_idx in range(3):
+		var valid: Array = []
+		for perm in all_perms_4:
+			var ok = true
+			for c in range(4):
+				for prev_row in rows:
+					if perm[c] == prev_row[c]:
+						ok = false
+						break
+				if not ok:
+					break
+			if ok:
+				valid.append(perm)
+		if valid.size() > 0:
+			rows.append(valid[randi() % valid.size()].duplicate())
+		else:
+			# Fallback: restart generation
+			_generate_4x4_solution()
+			return
+
+	_solution = rows
+
+func _get_all_permutations_4() -> Array:
+	var result: Array = []
+	var vals = [1, 2, 3, 4]
+	for a in vals:
+		for b in vals:
+			if b == a:
+				continue
+			for c in vals:
+				if c == a or c == b:
+					continue
+				for d in vals:
+					if d == a or d == b or d == c:
+						continue
+					result.append([a, b, c, d])
+	return result
+
 func _check_win() -> bool:
-	for r in range(3):
-		for c in range(3):
+	for r in range(_grid_size):
+		for c in range(_grid_size):
 			if _player_grid[r][c] != _solution[r][c]:
 				return false
 	return true
 
 func _validate_placement(row: int, col: int, value: int) -> bool:
-	for c in range(3):
+	for c in range(_grid_size):
 		if c != col and _player_grid[row][c] == value:
 			return false
-	for r in range(3):
+	for r in range(_grid_size):
 		if r != row and _player_grid[r][col] == value:
 			return false
 	return true
 
 func _give_hint():
-	# Find an empty cell and reveal it
-	for r in range(3):
-		for c in range(3):
+	for r in range(_grid_size):
+		for c in range(_grid_size):
 			if not _locked[r][c] and _player_grid[r][c] != _solution[r][c]:
 				_player_grid[r][c] = _solution[r][c]
 				_locked[r][c] = true
@@ -174,7 +279,7 @@ func _give_hint():
 				if audio_manager:
 					audio_manager.play_sfx("menu_select")
 				_draw_grid()
-				_update_status()
+				_update_labels()
 				if _check_win():
 					_puzzle_complete()
 				return
@@ -184,6 +289,8 @@ func _puzzle_complete():
 	_game_active = false
 	_puzzles_completed += 1
 	var reward = 15 - (_hints_used * 3)
+	if _grid_size == 4:
+		reward = 25 - (_hints_used * 3)
 	reward = max(5, reward)
 	_coins_earned += reward
 	game_manager.modify_coins(reward)
@@ -200,12 +307,26 @@ func _puzzle_complete():
 		achievement_mgr.check_sudoku_complete(_puzzles_completed, _hints_used)
 		achievement_mgr.check_all()
 
-	_show_feedback("SOLVED! +%d coins! SPACE for next puzzle, ESC to exit." % reward)
-	_update_status()
+	# Auto-advance if no hints used
+	var leveled_up = false
+	if _hints_used == 0:
+		var new_level = game_manager.advance_game_level("sudoku")
+		if new_level > _level:
+			leveled_up = true
+			_level = new_level
+
+	var msg = "SOLVED! +%d coins!" % reward
+	if leveled_up:
+		msg += " LEVEL UP! Now Level %d: %s" % [_level, LEVEL_NAMES[_level]]
+	elif _hints_used > 0:
+		msg += " (Complete without hints to advance)"
+	msg += " SPACE for next puzzle, ESC to exit."
+	_show_feedback(msg)
+	_update_labels()
 
 func _show_feedback(msg: String):
 	_feedback_label.text = msg
-	_feedback_timer = 3.0
+	_feedback_timer = 5.0
 
 func _draw_grid():
 	# Remove old grid visuals
@@ -213,11 +334,12 @@ func _draw_grid():
 		if child.is_in_group("grid_visual"):
 			child.queue_free()
 
-	var grid_offset_x = (_screen_width - 3 * (CELL_SIZE + CELL_GAP)) / 2.0
+	var grid_total_w = _grid_size * (CELL_SIZE + CELL_GAP)
+	var grid_offset_x = (_screen_width - grid_total_w) / 2.0
 	var grid_offset_y = 130.0
 
-	for row in range(3):
-		for col in range(3):
+	for row in range(_grid_size):
+		for col in range(_grid_size):
 			var cell_x = grid_offset_x + col * (CELL_SIZE + CELL_GAP)
 			var cell_y = grid_offset_y + row * (CELL_SIZE + CELL_GAP)
 
@@ -240,13 +362,13 @@ func _draw_grid():
 			var is_conflict = value > 0 and not _validate_placement(row, col, value) and not _locked[row][col]
 
 			if _locked[row][col]:
-				cell.color = Color(0.25, 0.25, 0.4)  # given cells
+				cell.color = Color(0.25, 0.25, 0.4)
 			elif is_conflict:
-				cell.color = Color(0.5, 0.15, 0.15)  # conflict
+				cell.color = Color(0.5, 0.15, 0.15)
 			elif value > 0:
-				cell.color = Color(0.2, 0.35, 0.2)  # player filled
+				cell.color = Color(0.2, 0.35, 0.2)
 			else:
-				cell.color = Color(0.18, 0.18, 0.28)  # empty
+				cell.color = Color(0.18, 0.18, 0.28)
 
 			add_child(cell)
 
@@ -268,8 +390,8 @@ func _draw_grid():
 				num_label.z_index = 1
 				add_child(num_label)
 
-	# Draw row/column labels
-	for i in range(3):
+	# Row labels
+	for i in range(_grid_size):
 		var row_label = Label.new()
 		row_label.text = "Row %d" % (i + 1)
 		row_label.position = Vector2(grid_offset_x - 65, grid_offset_y + i * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2 - 10)
@@ -308,7 +430,7 @@ func _input(event):
 			if event.keycode == KEY_SPACE:
 				_generate_puzzle()
 				_draw_grid()
-				_update_status()
+				_update_labels()
 			return
 
 		# Navigation
@@ -316,17 +438,17 @@ func _input(event):
 			cursor_y = max(0, cursor_y - 1)
 			_draw_grid()
 		elif event.keycode == KEY_DOWN:
-			cursor_y = min(2, cursor_y + 1)
+			cursor_y = min(_grid_size - 1, cursor_y + 1)
 			_draw_grid()
 		elif event.keycode == KEY_LEFT:
 			cursor_x = max(0, cursor_x - 1)
 			_draw_grid()
 		elif event.keycode == KEY_RIGHT:
-			cursor_x = min(2, cursor_x + 1)
+			cursor_x = min(_grid_size - 1, cursor_x + 1)
 			_draw_grid()
 
-		# Number entry
-		elif event.keycode in [KEY_1, KEY_2, KEY_3]:
+		# Number entry (1-3 for 3x3, 1-4 for 4x4)
+		elif event.keycode >= KEY_1 and event.keycode <= KEY_1 + _grid_size - 1:
 			if _locked[cursor_y][cursor_x]:
 				_show_feedback("That cell is locked!")
 				return

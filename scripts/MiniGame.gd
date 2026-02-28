@@ -1,19 +1,45 @@
 extends Node2D
 
-# 2D Treat-Catching Mini-Game
-# Arrow keys to move catcher left/right. Catch treats for coins + happiness.
-# Gray rocks cost 1 coin. Game lasts 30 seconds.
+# Treat-Catching Mini-Game — 5 auto-advancing levels
+# L1: Slow fall, few rocks
+# L2: Medium fall, some rocks
+# L3: Normal fall, 20% rocks
+# L4: Fast fall, 25% rocks, golden treats (3 coins)
+# L5: Very fast, 30% rocks, golden treats
+# Advance: Score 10+
 
 var game_manager
+var audio_manager
 
-const GAME_DURATION: float = 30.0
+const ADVANCE_THRESHOLD: int = 10
 const CATCHER_SPEED: float = 400.0
-const SPAWN_INTERVAL_MIN: float = 0.4
-const SPAWN_INTERVAL_MAX: float = 1.0
-const FALL_SPEED: float = 250.0
-const ROCK_CHANCE: float = 0.2
 
-var _time_remaining: float = GAME_DURATION
+# Per-level config: [fall_speed, rock_chance, duration, has_golden]
+const LEVEL_CONFIG: Array = [
+	[], # unused index 0
+	[150.0, 0.10, 30.0, false],
+	[200.0, 0.15, 30.0, false],
+	[250.0, 0.20, 30.0, false],
+	[300.0, 0.25, 35.0, true],
+	[350.0, 0.30, 40.0, true],
+]
+
+const LEVEL_NAMES: Array = [
+	"",
+	"Beginner",
+	"Easy",
+	"Normal",
+	"Fast",
+	"Expert",
+]
+
+var _level: int = 1
+var _fall_speed: float = 150.0
+var _rock_chance: float = 0.10
+var _game_duration: float = 30.0
+var _has_golden: bool = false
+
+var _time_remaining: float = 30.0
 var _spawn_timer: float = 0.0
 var _next_spawn: float = 0.5
 var _score: int = 0
@@ -24,17 +50,19 @@ var _catcher: ColorRect
 var _treats: Array = []
 var _time_label: Label
 var _score_label: Label
+var _level_label: Label
 var _result_label: Label
 var _screen_width: float = 1152.0
 var _screen_height: float = 648.0
 
-# Which pet benefits from this mini-game (first pet by default)
 var _active_pet_id: int = -1
 
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
+	audio_manager = get_tree().root.get_node_or_null("AudioManager")
 
-	# Pick first pet as active pet for happiness bonus
+	_level = game_manager.get_game_level("treat_catch")
+
 	var all_pets = game_manager.get_all_pets()
 	if all_pets.size() > 0:
 		_active_pet_id = all_pets.keys()[0]
@@ -44,7 +72,16 @@ func _ready():
 		_screen_width = viewport_size.x
 		_screen_height = viewport_size.y
 
+	_apply_level_config()
 	_build_ui()
+
+func _apply_level_config():
+	var config = LEVEL_CONFIG[_level]
+	_fall_speed = config[0]
+	_rock_chance = config[1]
+	_game_duration = config[2]
+	_has_golden = config[3]
+	_time_remaining = _game_duration
 
 func _build_ui():
 	# Background
@@ -59,6 +96,14 @@ func _build_ui():
 	title.position = Vector2(_screen_width / 2.0 - 80, 10)
 	title.add_theme_font_size_override("font_size", 28)
 	add_child(title)
+
+	# Level display
+	_level_label = Label.new()
+	_level_label.text = "Level %d: %s" % [_level, LEVEL_NAMES[_level]]
+	_level_label.position = Vector2(_screen_width / 2.0 - 60, 42)
+	_level_label.add_theme_font_size_override("font_size", 16)
+	_level_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	add_child(_level_label)
 
 	# Time display
 	_time_label = Label.new()
@@ -76,29 +121,30 @@ func _build_ui():
 	# Instructions
 	var instructions = Label.new()
 	instructions.text = "LEFT/RIGHT arrows to move | Catch treats, avoid rocks!"
+	if _has_golden:
+		instructions.text += " Golden treats = 3 coins!"
 	instructions.position = Vector2(10, _screen_height - 30)
 	instructions.add_theme_font_size_override("font_size", 12)
 	instructions.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	add_child(instructions)
 
-	# Catcher (pet representation at bottom)
+	# Catcher
 	_catcher = ColorRect.new()
 	_catcher.size = Vector2(80, 30)
 	_catcher.position = Vector2(_screen_width / 2.0 - 40, _screen_height - 70)
 	_catcher.color = Color(0.9, 0.6, 0.9)
 	add_child(_catcher)
 
-	# Catcher label
 	var catcher_label = Label.new()
 	catcher_label.text = "^_^"
 	catcher_label.position = Vector2(25, 3)
 	catcher_label.add_theme_font_size_override("font_size", 16)
 	_catcher.add_child(catcher_label)
 
-	# Result label (hidden initially)
+	# Result label (hidden)
 	_result_label = Label.new()
-	_result_label.position = Vector2(_screen_width / 2.0 - 150, _screen_height / 2.0 - 60)
-	_result_label.add_theme_font_size_override("font_size", 24)
+	_result_label.position = Vector2(_screen_width / 2.0 - 180, _screen_height / 2.0 - 80)
+	_result_label.add_theme_font_size_override("font_size", 22)
 	_result_label.visible = false
 	add_child(_result_label)
 
@@ -135,29 +181,42 @@ func _handle_movement(delta: float):
 
 func _handle_spawning(delta: float):
 	_spawn_timer += delta
+	# Spawn rate scales slightly with level
+	var spawn_min = max(0.25, 0.5 - _level * 0.05)
+	var spawn_max = max(0.5, 1.0 - _level * 0.1)
 	if _spawn_timer >= _next_spawn:
 		_spawn_timer = 0.0
-		_next_spawn = randf_range(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_MAX)
+		_next_spawn = randf_range(spawn_min, spawn_max)
 		_spawn_item()
 
 func _spawn_item():
-	var is_rock = randf() < ROCK_CHANCE
+	var roll = randf()
+	var is_rock = roll < _rock_chance
+	var is_golden = false
+	if not is_rock and _has_golden:
+		is_golden = randf() < 0.15  # 15% of treats are golden
+
 	var item = ColorRect.new()
 	item.size = Vector2(30, 30)
 	item.position = Vector2(randf_range(10, _screen_width - 40), 50)
 
 	if is_rock:
 		item.color = Color(0.5, 0.5, 0.5)
-		item.set_meta("is_rock", true)
+		item.set_meta("type", "rock")
+	elif is_golden:
+		item.color = Color(1.0, 0.84, 0.0)
+		item.set_meta("type", "golden")
+		var star = Label.new()
+		star.text = "$"
+		star.position = Vector2(8, 2)
+		star.add_theme_font_size_override("font_size", 18)
+		item.add_child(star)
 	else:
-		# Treats are colorful
 		var colors = [Color.PINK, Color.YELLOW, Color.CYAN, Color(1.0, 0.6, 0.2)]
 		item.color = colors[randi() % colors.size()]
-		item.set_meta("is_rock", false)
-
-		# Star shape indicator
+		item.set_meta("type", "treat")
 		var star = Label.new()
-		star.text = "*" if not is_rock else "x"
+		star.text = "*"
 		star.position = Vector2(8, 2)
 		star.add_theme_font_size_override("font_size", 18)
 		item.add_child(star)
@@ -168,7 +227,7 @@ func _spawn_item():
 func _handle_falling(delta: float):
 	var to_remove = []
 	for item in _treats:
-		item.position.y += FALL_SPEED * delta
+		item.position.y += _fall_speed * delta
 		if item.position.y > _screen_height:
 			to_remove.append(item)
 
@@ -183,12 +242,22 @@ func _check_collisions():
 	for item in _treats:
 		var item_rect = Rect2(item.position, item.size)
 		if catcher_rect.intersects(item_rect):
-			if item.get_meta("is_rock"):
+			var item_type = item.get_meta("type")
+			if item_type == "rock":
 				_coins_earned = max(0, _coins_earned - 1)
 				_score -= 1
+				if audio_manager:
+					audio_manager.play_sfx("wrong")
+			elif item_type == "golden":
+				_coins_earned += 3
+				_score += 3
+				if audio_manager:
+					audio_manager.play_sfx("coin")
 			else:
 				_coins_earned += 1
 				_score += 1
+				if audio_manager:
+					audio_manager.play_sfx("coin")
 			to_remove.append(item)
 
 	for item in to_remove:
@@ -198,27 +267,39 @@ func _check_collisions():
 func _end_game():
 	_game_active = false
 
-	# Apply rewards
 	if _coins_earned > 0:
 		game_manager.modify_coins(_coins_earned)
 	if _active_pet_id >= 0 and _score > 0:
 		game_manager.modify_stat(_active_pet_id, "happiness", _score * 2)
 		game_manager.add_xp(_active_pet_id, _score)
 
-	# Check achievements
 	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
 	if achievement_mgr:
 		achievement_mgr.check_mini_game_score(_score)
 		achievement_mgr.check_all()
 
-	# Show results
+	# Check for level advance
+	var leveled_up = false
+	if _score >= ADVANCE_THRESHOLD:
+		var new_level = game_manager.advance_game_level("treat_catch")
+		if new_level > _level:
+			leveled_up = true
+			_level = new_level
+
 	var xp_bonus = max(0, _score)
-	_result_label.text = "GAME OVER!\n\nScore: %d\nCoins earned: %d\nHappiness bonus: +%d\nXP bonus: +%d\n\nPress ESC to return to Hub" % [
-		_score, max(0, _coins_earned), max(0, _score * 2), xp_bonus
+	var result_text = "GAME OVER!\n\nLevel: %d — %s\nScore: %d\nCoins earned: %d\nXP bonus: +%d" % [
+		_level, LEVEL_NAMES[_level], _score, max(0, _coins_earned), xp_bonus
 	]
+
+	if leveled_up:
+		result_text += "\n\nLEVEL UP! Now Level %d: %s" % [_level, LEVEL_NAMES[_level]]
+	elif _score < ADVANCE_THRESHOLD:
+		result_text += "\n\nNeed score %d to advance (got %d)" % [ADVANCE_THRESHOLD, _score]
+
+	result_text += "\n\nPress ESC to return to Hub"
+	_result_label.text = result_text
 	_result_label.visible = true
 
-	# Clear remaining treats
 	for item in _treats:
 		item.queue_free()
 	_treats.clear()

@@ -313,7 +313,7 @@ func _create_ui():
 
 	# Instructions — split into two lines so they don't overflow
 	_instructions_label = Label.new()
-	_instructions_label.text = "WASD: walk | UP/DOWN: select pet | F: feed | P: play | R: rest\nE: collect egg | X: rename | Ctrl+S: save | ESC: back"
+	_instructions_label.text = "WASD/Numpad: walk | UP/DOWN: select pet | F: feed | P: play | R: rest\nE: collect egg | X: rename | Ctrl+S: save | ESC: back"
 	_instructions_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(_instructions_label)
 
@@ -454,15 +454,15 @@ func _process(delta: float):
 		if _rain_duration <= 0:
 			_stop_rain()
 
-	# WASD camera movement
+	# WASD + Numpad camera movement (8=up, 4=left, 2=down, 6=right)
 	var move_dir = Vector3.ZERO
-	if Input.is_key_pressed(KEY_W):
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_KP_8):
 		move_dir.z -= 1
-	if Input.is_key_pressed(KEY_S) and not Input.is_key_pressed(KEY_CTRL):
+	if (Input.is_key_pressed(KEY_S) and not Input.is_key_pressed(KEY_CTRL)) or Input.is_key_pressed(KEY_KP_2):
 		move_dir.z += 1
-	if Input.is_key_pressed(KEY_A):
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_KP_4):
 		move_dir.x -= 1
-	if Input.is_key_pressed(KEY_D):
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_KP_6):
 		move_dir.x += 1
 
 	if move_dir.length() > 0:

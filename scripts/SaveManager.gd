@@ -37,6 +37,7 @@ func save_game():
 		"last_played": Time.get_unix_time_from_system(),
 		"total_play_time": gm.total_play_time,
 		"last_login_date": gm.last_login_date,
+		"game_levels": gm.game_levels,
 		"achievements": achievements,
 	}
 

@@ -1,59 +1,80 @@
 extends Node2D
 
-# Memory Match mini-game — arrow keys + SPACE, earn coins
+# Memory Match — 5 auto-advancing levels
+# L1: 2x3 (3 pairs)  L2: 2x4 (4 pairs)  L3: 3x4 (6 pairs)
+# L4: 4x4 (8 pairs)  L5: 4x6 (12 pairs)
+# Advance: Complete the board
 
 var game_manager
 var audio_manager
 
 # Grid
-var grid_cols: int = 4
-var grid_rows: int = 4
-var cards: Array = []  # 2D array of card data
+var grid_cols: int = 3
+var grid_rows: int = 2
+var cards: Array = []
 var cursor_x: int = 0
 var cursor_y: int = 0
 
 # Card state
-var flipped_cards: Array = []  # indices of currently flipped cards [Vector2i, ...]
+var flipped_cards: Array = []
 var matched_pairs: int = 0
 var total_pairs: int = 0
 var coins_earned: int = 0
 var can_flip: bool = true
 
-# Difficulty selection
-var difficulty: int = 1  # 0=easy(3x4), 1=medium(4x4), 2=hard(4x6)
-var selecting_difficulty: bool = true
+var _level: int = 1
 
 # Visual constants
 const CARD_SIZE: float = 80.0
 const CARD_GAP: float = 10.0
-const GRID_OFFSET_X: float = 160.0
-const GRID_OFFSET_Y: float = 120.0
 
-# Card types (colors representing pet types)
+# Card colors
 var card_colors = [
-	Color.WHITE,       # unicorn
-	Color.LIGHT_GRAY,  # pegasus
-	Color.RED,         # dragon
-	Color(0.7, 0.3, 1.0),  # alicorn (purple)
-	Color.YELLOW,      # golden
-	Color(0.5, 0.8, 1.0),  # sky blue
-	Color(0.3, 0.8, 0.3),  # green
-	Color(1.0, 0.5, 0.3),  # orange
-	Color(1.0, 0.6, 0.8),  # pink
-	Color(0.6, 0.4, 0.8),  # lavender
-	Color(0.3, 0.6, 0.9),  # blue
-	Color(0.9, 0.9, 0.3),  # gold
+	Color.WHITE,
+	Color.LIGHT_GRAY,
+	Color.RED,
+	Color(0.7, 0.3, 1.0),
+	Color.YELLOW,
+	Color(0.5, 0.8, 1.0),
+	Color(0.3, 0.8, 0.3),
+	Color(1.0, 0.5, 0.3),
+	Color(1.0, 0.6, 0.8),
+	Color(0.6, 0.4, 0.8),
+	Color(0.3, 0.6, 0.9),
+	Color(0.9, 0.9, 0.3),
 ]
 
 var _status_label: Label
 var _info_label: Label
-var _difficulty_label: Label
+var _level_label: Label
+
+const LEVEL_NAMES: Array = [
+	"",
+	"Tiny (2x3)",
+	"Small (2x4)",
+	"Medium (3x4)",
+	"Large (4x4)",
+	"Expert (4x6)",
+]
+
+# Per-level config: [cols, rows]
+const LEVEL_CONFIG: Array = [
+	[], # unused index 0
+	[3, 2],
+	[4, 2],
+	[4, 3],
+	[4, 4],
+	[6, 4],
+]
 
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
+
+	_level = game_manager.get_game_level("memory")
+
 	_create_ui()
-	_show_difficulty_select()
+	_start_game()
 
 func _create_ui():
 	# Background
@@ -70,54 +91,32 @@ func _create_ui():
 	title.add_theme_color_override("font_color", Color.WHITE)
 	add_child(title)
 
-	# Status (coins earned, pairs matched)
+	# Level display
+	_level_label = Label.new()
+	_level_label.position = Vector2(200, 14)
+	_level_label.add_theme_font_size_override("font_size", 18)
+	_level_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	add_child(_level_label)
+
+	# Status
 	_status_label = Label.new()
 	_status_label.position = Vector2(10, 45)
 	_status_label.add_theme_font_size_override("font_size", 16)
 	_status_label.add_theme_color_override("font_color", Color.YELLOW)
 	add_child(_status_label)
 
-	# Info/feedback
+	# Info
 	_info_label = Label.new()
 	_info_label.position = Vector2(10, 70)
 	_info_label.add_theme_font_size_override("font_size", 14)
 	_info_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	_info_label.text = "Arrow keys: move | SPACE: flip | ESC: back"
 	add_child(_info_label)
 
-	# Difficulty selector
-	_difficulty_label = Label.new()
-	_difficulty_label.position = Vector2(300, 250)
-	_difficulty_label.add_theme_font_size_override("font_size", 18)
-	_difficulty_label.add_theme_color_override("font_color", Color.WHITE)
-	add_child(_difficulty_label)
-
-func _show_difficulty_select():
-	selecting_difficulty = true
-	_update_difficulty_display()
-	_info_label.text = "UP/DOWN: choose difficulty | SPACE: start | ESC: back to hub"
-
-func _update_difficulty_display():
-	var lines = ""
-	var options = ["Easy (3x4)", "Medium (4x4)", "Hard (4x6)"]
-	for i in range(options.size()):
-		var prefix = "> " if i == difficulty else "  "
-		lines += prefix + options[i] + "\n"
-	_difficulty_label.text = "Choose Difficulty:\n\n" + lines
-
 func _start_game():
-	selecting_difficulty = false
-	_difficulty_label.text = ""
-
-	match difficulty:
-		0:
-			grid_cols = 4
-			grid_rows = 3
-		1:
-			grid_cols = 4
-			grid_rows = 4
-		2:
-			grid_cols = 6
-			grid_rows = 4
+	var config = LEVEL_CONFIG[_level]
+	grid_cols = config[0]
+	grid_rows = config[1]
 
 	total_pairs = (grid_cols * grid_rows) / 2
 	matched_pairs = 0
@@ -125,22 +124,20 @@ func _start_game():
 	flipped_cards.clear()
 	can_flip = true
 
+	_level_label.text = "Level %d: %s" % [_level, LEVEL_NAMES[_level]]
+
 	_generate_cards()
 	_draw_board()
 	_update_status()
-	_info_label.text = "Arrow keys: move | SPACE: flip | ESC: back"
 
 func _generate_cards():
-	# Create pairs
 	var values: Array = []
 	for i in range(total_pairs):
 		values.append(i % card_colors.size())
 		values.append(i % card_colors.size())
 
-	# Shuffle
 	values.shuffle()
 
-	# Build grid
 	cards.clear()
 	var idx = 0
 	for row in range(grid_rows):
@@ -158,10 +155,14 @@ func _generate_cards():
 	cursor_y = 0
 
 func _draw_board():
-	# Remove old card visuals
 	for child in get_children():
 		if child.is_in_group("card_visual"):
 			child.queue_free()
+
+	var grid_total_w = grid_cols * (CARD_SIZE + CARD_GAP)
+	var grid_total_h = grid_rows * (CARD_SIZE + CARD_GAP)
+	var grid_offset_x = (1152 - grid_total_w) / 2.0
+	var grid_offset_y = max(100, (648 - grid_total_h) / 2.0)
 
 	for row in range(grid_rows):
 		for col in range(grid_cols):
@@ -169,8 +170,8 @@ func _draw_board():
 			var rect = ColorRect.new()
 			rect.size = Vector2(CARD_SIZE, CARD_SIZE)
 			rect.position = Vector2(
-				GRID_OFFSET_X + col * (CARD_SIZE + CARD_GAP),
-				GRID_OFFSET_Y + row * (CARD_SIZE + CARD_GAP)
+				grid_offset_x + col * (CARD_SIZE + CARD_GAP),
+				grid_offset_y + row * (CARD_SIZE + CARD_GAP)
 			)
 			rect.add_to_group("card_visual")
 
@@ -179,7 +180,7 @@ func _draw_board():
 			elif card["flipped"]:
 				rect.color = card_colors[card["value"]]
 			else:
-				rect.color = Color(0.3, 0.25, 0.4)  # face-down color
+				rect.color = Color(0.3, 0.25, 0.4)
 
 			# Cursor highlight
 			if row == cursor_y and col == cursor_x and not card["matched"]:
@@ -189,12 +190,10 @@ func _draw_board():
 				border.color = Color.GOLD
 				border.add_to_group("card_visual")
 				add_child(border)
-				# Re-add card on top
 				rect.z_index = 1
 
 			add_child(rect)
 
-			# Show symbol for flipped/matched cards
 			if card["flipped"] or card["matched"]:
 				var symbol = Label.new()
 				var pet_names = ["U", "P", "D", "A", "G", "S", "E", "O", "K", "L", "B", "Y"]
@@ -228,7 +227,6 @@ func _flip_card():
 		var c2 = cards[flipped_cards[1].y][flipped_cards[1].x]
 
 		if c1["value"] == c2["value"]:
-			# Match!
 			c1["matched"] = true
 			c2["matched"] = true
 			matched_pairs += 1
@@ -243,7 +241,6 @@ func _flip_card():
 			if matched_pairs >= total_pairs:
 				_game_won()
 		else:
-			# No match — flip back after delay
 			if audio_manager:
 				audio_manager.play_sfx("mismatch")
 			_info_label.text = "No match..."
@@ -262,49 +259,43 @@ func _unflip_cards():
 	_draw_board()
 
 func _game_won():
-	# Bonus for completing the board
-	var bonus = 10
+	var bonus = 5 + _level * 3
 	game_manager.modify_coins(bonus)
 	coins_earned += bonus
 
-	# Happiness boost to all pets
 	for pet_id in game_manager.get_all_pets().keys():
 		game_manager.modify_stat(pet_id, "happiness", 5)
+		game_manager.add_xp(pet_id, 5 + _level * 2)
 
 	if audio_manager:
 		audio_manager.play_sfx("win")
 
-	_info_label.text = "You matched them all! +%d bonus coins! All pets +5 happiness! SPACE to play again, ESC to exit." % bonus
+	# Auto-advance on board completion
+	var leveled_up = false
+	var new_level = game_manager.advance_game_level("memory")
+	if new_level > _level:
+		leveled_up = true
+		_level = new_level
+
+	var msg = "You matched them all! +%d bonus coins!" % bonus
+	if leveled_up:
+		msg += " LEVEL UP! Now Level %d: %s" % [_level, LEVEL_NAMES[_level]]
+	msg += " ESC to exit."
+	_info_label.text = msg
 	_update_status()
 	can_flip = false
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_ESCAPE or event.keycode == KEY_B:
+			var save_manager = get_tree().root.get_node_or_null("SaveManager")
+			if save_manager:
+				save_manager.on_scene_transition()
 			get_tree().change_scene_to_file("res://scenes/Main.tscn")
 			return
 
-		if selecting_difficulty:
-			if event.keycode == KEY_UP:
-				difficulty = max(0, difficulty - 1)
-				_update_difficulty_display()
-				if audio_manager:
-					audio_manager.play_sfx("menu_navigate")
-			elif event.keycode == KEY_DOWN:
-				difficulty = min(2, difficulty + 1)
-				_update_difficulty_display()
-				if audio_manager:
-					audio_manager.play_sfx("menu_navigate")
-			elif event.keycode == KEY_SPACE:
-				if audio_manager:
-					audio_manager.play_sfx("menu_select")
-				_start_game()
-			return
-
-		# Game won — SPACE to restart
-		if matched_pairs >= total_pairs and not selecting_difficulty:
-			if event.keycode == KEY_SPACE:
-				_start_game()
+		# After winning, no replay from within — just ESC back
+		if matched_pairs >= total_pairs:
 			return
 
 		if event.keycode == KEY_UP:

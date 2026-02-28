@@ -27,6 +27,33 @@ var _welcome_message: String = ""
 var egg_inventory: Array = []  # Array of { "time_remaining": float, "type": String }
 const MAX_EGGS: int = 3
 
+# Per-game level progression (auto-advance, kids don't choose)
+var game_levels: Dictionary = {
+	"math": 1,
+	"spelling": 1,
+	"sudoku": 1,
+	"treat_catch": 1,
+	"memory": 1,
+}
+
+const GAME_MAX_LEVELS: Dictionary = {
+	"math": 10,
+	"spelling": 10,
+	"sudoku": 6,
+	"treat_catch": 5,
+	"memory": 5,
+}
+
+func get_game_level(game_name: String) -> int:
+	return game_levels.get(game_name, 1)
+
+func advance_game_level(game_name: String) -> int:
+	var current = game_levels.get(game_name, 1)
+	var max_level = GAME_MAX_LEVELS.get(game_name, 10)
+	if current < max_level:
+		game_levels[game_name] = current + 1
+	return game_levels[game_name]
+
 # XP thresholds for levels 1-10
 const LEVEL_THRESHOLDS: Array = [0, 50, 120, 250, 500, 900, 1400, 2000, 2800, 3800]
 
@@ -106,6 +133,11 @@ func _load_saved_data():
 			"time_remaining": float(egg_data.get("time_remaining", 300.0)),
 			"type": str(egg_data.get("type", "unicorn")),
 		})
+
+	# Restore game levels
+	var saved_levels = data.get("game_levels", {})
+	for key in saved_levels.keys():
+		game_levels[key] = int(saved_levels[key])
 
 	# Restore achievements
 	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
