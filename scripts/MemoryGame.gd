@@ -70,6 +70,7 @@ const LEVEL_CONFIG: Array = [
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
+	game_manager.pending_game = "res://scenes/MemoryGame.tscn"
 
 	_level = game_manager.get_game_level("memory")
 
@@ -277,7 +278,14 @@ func _game_won():
 		leveled_up = true
 		_level = new_level
 
-	var msg = "You matched them all! +%d bonus coins!" % bonus
+	# Award egg for completing the game
+	var egg_got = game_manager.collect_egg()
+	var egg_msg = " +1 Egg!" if egg_got else " Egg inventory full!"
+
+	# Clear pending game — player completed it
+	game_manager.pending_game = ""
+
+	var msg = "You matched them all! +%d bonus coins!%s" % [bonus, egg_msg]
 	if leveled_up:
 		msg += " LEVEL UP! Now Level %d: %s" % [_level, LEVEL_NAMES[_level]]
 	msg += " ESC to exit."

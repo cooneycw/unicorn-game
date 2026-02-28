@@ -30,6 +30,12 @@ var _egg_node: MeshInstance3D = null
 var _egg_label: Label3D = null
 var _egg_available: bool = false
 
+# Sky environment
+var _world_env: WorldEnvironment
+var _sky_env: Environment
+const SKY_COLOR_CLEAR = Color(0.53, 0.81, 0.92)  # light blue
+const SKY_COLOR_RAIN = Color(0.5, 0.5, 0.55)      # gray overcast
+
 # Environment
 var _sun_light: DirectionalLight3D
 var _day_time: float = 0.0  # 0-1 representing full day cycle
@@ -103,6 +109,17 @@ func _create_island_environment():
 	_camera.position = Vector3(0, 8, 15)
 	_camera.look_at(Vector3(0, 0, 0), Vector3.UP)
 	add_child(_camera)
+
+	# Sky background — light blue by default
+	_sky_env = Environment.new()
+	_sky_env.background_mode = Environment.BG_COLOR
+	_sky_env.background_color = SKY_COLOR_CLEAR
+	_sky_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	_sky_env.ambient_light_color = Color.WHITE
+	_sky_env.ambient_light_energy = 0.5
+	_world_env = WorldEnvironment.new()
+	_world_env.environment = _sky_env
+	add_child(_world_env)
 
 func _create_trees():
 	var tree_positions = [
@@ -313,7 +330,7 @@ func _create_ui():
 
 	# Instructions — split into two lines so they don't overflow
 	_instructions_label = Label.new()
-	_instructions_label.text = "WASD/Numpad: walk | UP/DOWN: select pet | F: feed | P: play | R: rest\nE: collect egg | X: rename | Ctrl+S: save | ESC: back"
+	_instructions_label.text = "WASD/Arrows: walk | LEFT/RIGHT: select pet | F: feed | P: play | R: rest\nE: collect egg | I: inspect | X: rename | Ctrl+S: save | ESC: back"
 	_instructions_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(_instructions_label)
 
@@ -454,11 +471,11 @@ func _process(delta: float):
 		if _rain_duration <= 0:
 			_stop_rain()
 
-	# WASD + Numpad camera movement (8=up, 4=left, 2=down, 6=right)
+	# WASD + Numpad + Arrow camera movement
 	var move_dir = Vector3.ZERO
-	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_KP_8):
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_KP_8) or Input.is_key_pressed(KEY_UP):
 		move_dir.z -= 1
-	if (Input.is_key_pressed(KEY_S) and not Input.is_key_pressed(KEY_CTRL)) or Input.is_key_pressed(KEY_KP_2):
+	if (Input.is_key_pressed(KEY_S) and not Input.is_key_pressed(KEY_CTRL)) or Input.is_key_pressed(KEY_KP_2) or Input.is_key_pressed(KEY_DOWN):
 		move_dir.z += 1
 	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_KP_4):
 		move_dir.x -= 1
@@ -479,12 +496,18 @@ func _start_rain():
 	_is_raining = true
 	_rain_particles.emitting = true
 	_rain_duration = randf_range(30.0, 60.0)
+	# Tween sky to overcast gray
+	var tween = create_tween()
+	tween.tween_property(_sky_env, "background_color", SKY_COLOR_RAIN, 2.0)
 
 func _stop_rain():
 	_is_raining = false
 	_rain_particles.emitting = false
 	_rain_timer = 0.0
 	_next_rain_time = randf_range(120.0, 300.0)
+	# Tween sky back to clear blue
+	var tween = create_tween()
+	tween.tween_property(_sky_env, "background_color", SKY_COLOR_CLEAR, 3.0)
 
 func _spawn_egg():
 	_egg_available = true
@@ -619,6 +642,15 @@ func _go_back():
 		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
+func _inspect_pet():
+	if pet_ids.size() == 0:
+		return
+	game_manager.inspecting_pet_id = pet_ids[selected_pet_index]
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
+	get_tree().change_scene_to_file("res://scenes/PetProfile.tscn")
+
 func _start_rename():
 	if pet_ids.size() == 0:
 		return
@@ -686,7 +718,7 @@ func _input(event):
 			_show_feedback("Game saved!")
 			return
 
-		if event.keycode == KEY_UP:
+		if event.keycode == KEY_LEFT:
 			selected_pet_index = max(0, selected_pet_index - 1)
 			_highlight_selected()
 			_update_stats_display()
@@ -694,7 +726,7 @@ func _input(event):
 				audio_manager.play_sfx("menu_navigate")
 			return
 
-		if event.keycode == KEY_DOWN:
+		if event.keycode == KEY_RIGHT:
 			selected_pet_index = min(pet_ids.size() - 1, selected_pet_index + 1)
 			_highlight_selected()
 			_update_stats_display()
@@ -720,4 +752,8 @@ func _input(event):
 
 		if event.keycode == KEY_X:
 			_start_rename()
+			return
+
+		if event.keycode == KEY_I:
+			_inspect_pet()
 			return

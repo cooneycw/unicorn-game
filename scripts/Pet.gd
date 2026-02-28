@@ -111,7 +111,10 @@ func _build_head():
 	_head_mesh.mesh = head
 
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = _get_pet_color()
+	if pet_type == "dragon":
+		mat.albedo_color = Color(1.0, 0.84, 0.0)  # gold head
+	else:
+		mat.albedo_color = _get_pet_color()
 	_head_mesh.material_override = mat
 	add_child(_head_mesh)
 
@@ -213,18 +216,93 @@ func _build_horn():
 
 	add_child(horn)
 
+const RAINBOW_COLORS: Array = [
+	Color(1.0, 0.0, 0.0),      # red
+	Color(1.0, 0.5, 0.0),      # orange
+	Color(1.0, 1.0, 0.0),      # yellow
+	Color(0.0, 0.8, 0.0),      # green
+	Color(0.0, 0.4, 1.0),      # blue
+	Color(0.56, 0.0, 1.0),     # violet
+]
+
 func _build_type_features():
 	match pet_type:
+		"unicorn":
+			_build_mane(RAINBOW_COLORS)
+			_build_equine_tail(RAINBOW_COLORS)
 		"pegasus":
 			_build_pegasus_wings()
+			var blue = Color(0.3, 0.5, 1.0)
+			_build_mane([blue])
+			_build_equine_tail([blue])
 		"dragon":
 			_build_dragon_features()
 		"alicorn":
 			_build_alicorn_features()
+			_build_mane([Color(0.8, 0.6, 0.95)])
+			_build_equine_tail([Color(0.8, 0.6, 0.95)])
 		"dogocorn":
 			_build_dog_features()
 		"catocorn":
 			_build_cat_features()
+
+func _build_mane(colors: Array):
+	# Flowing mane along neck — series of small spheres
+	var segment_count = 6
+	for i in range(segment_count):
+		var mane_part = MeshInstance3D.new()
+		var sphere = SphereMesh.new()
+		sphere.radius = 0.07 - i * 0.005
+		sphere.height = 0.12 - i * 0.008
+		mane_part.mesh = sphere
+
+		# Position along the top of neck/back
+		var t = float(i) / float(segment_count - 1)
+		mane_part.position = Vector3(0, 0.45 - t * 0.15, -0.25 + t * 0.35)
+
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = colors[i % colors.size()]
+		mane_part.material_override = mat
+		add_child(mane_part)
+
+func _build_equine_tail(colors: Array):
+	# Flowing tail at the back — cylinder segments
+	_tail_node = Node3D.new()
+	_tail_node.position = Vector3(0, -0.05, 0.45)
+	_tail_node.name = "EquineTail"
+
+	var segment_count = 5
+	for i in range(segment_count):
+		var seg = MeshInstance3D.new()
+		var cyl = CylinderMesh.new()
+		cyl.top_radius = 0.03 - i * 0.003
+		cyl.bottom_radius = 0.04 - i * 0.004
+		cyl.height = 0.15
+		seg.mesh = cyl
+
+		var t = float(i) / float(segment_count - 1)
+		seg.position = Vector3(0, -i * 0.08, i * 0.06)
+		seg.rotation.x = PI / 4 + t * 0.3
+
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = colors[i % colors.size()]
+		seg.material_override = mat
+		_tail_node.add_child(seg)
+
+	# Tail tip tuft
+	var tip = MeshInstance3D.new()
+	var tip_mesh = SphereMesh.new()
+	tip_mesh.radius = 0.05
+	tip_mesh.height = 0.08
+	tip.mesh = tip_mesh
+	tip.position = Vector3(0, -segment_count * 0.08, segment_count * 0.06)
+
+	var tip_mat = StandardMaterial3D.new()
+	tip_mat.albedo_color = colors[(segment_count) % colors.size()]
+	tip.material_override = tip_mat
+	_tail_node.add_child(tip)
+
+	add_child(_tail_node)
 
 func _build_pegasus_wings():
 	for side in [-1.0, 1.0]:
@@ -236,7 +314,7 @@ func _build_pegasus_wings():
 		wing.rotation.z = side * -0.3
 
 		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(0.85, 0.85, 0.95)
+		mat.albedo_color = Color(1.0, 0.6, 0.75)  # pink wings
 		wing.material_override = mat
 
 		if side < 0:
@@ -716,6 +794,10 @@ func _process(delta: float):
 		_tail_node.rotation.y = sin(_bob_time * 1.2) * 0.5
 		_tail_node.rotation.x = sin(_bob_time * 0.8) * 0.1
 
+	# Equine tail sway (unicorn, pegasus, alicorn)
+	if pet_type in ["unicorn", "pegasus", "alicorn"] and _tail_node:
+		_tail_node.rotation.y = sin(_bob_time * 1.5) * 0.3
+
 	# Iridescent color cycle for alicorn with variant 2
 	if pet_type == "alicorn" and _body_mesh and _body_mesh.material_override:
 		var info = _game_manager.get_pet_info(pet_id)
@@ -827,7 +909,7 @@ func _get_pet_color() -> Color:
 		"pegasus":
 			return Color.LIGHT_GRAY
 		"dragon":
-			return Color.RED
+			return Color(0.0, 0.6, 0.0)
 		"alicorn":
 			return Color(0.6, 0.2, 0.8)
 		"dogocorn":

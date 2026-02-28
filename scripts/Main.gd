@@ -271,6 +271,10 @@ func _go_to_random_game():
 	var save_manager = get_tree().root.get_node_or_null("SaveManager")
 	if save_manager:
 		save_manager.on_scene_transition()
+	# If player escaped a game without finishing, force return to that game
+	if game_manager.pending_game != "":
+		get_tree().change_scene_to_file(game_manager.pending_game)
+		return
 	var scene_path = MINI_GAME_SCENES[randi() % MINI_GAME_SCENES.size()]
 	get_tree().change_scene_to_file(scene_path)
 
@@ -283,10 +287,11 @@ func _go_to_achievements():
 func _update_menu_display():
 	if _menu_label == null:
 		return
+	var game_option = "Continue Game! (G)" if game_manager.pending_game != "" else "Play a Game! (G)  [random surprise]"
 	var options = [
 		"Visit Island (Q)",
 		"Visit Vet (V)",
-		"Play a Game! (G)  [random surprise]",
+		game_option,
 		"Achievements (A)"
 	]
 	var text = ""

@@ -53,6 +53,7 @@ unicorn, pegasus, dragon, alicorn, dogocorn, catocorn
 | `MathGame.tscn` | `MathGame.gd` | Math challenge (10 levels: add/sub/mul/div/mixed, advance on 8+ correct) |
 | `SudokuGame.tscn` | `SudokuGame.gd` | Sudoku (6 levels: 3x3 and 4x4, advance without hints) |
 | `SpellingGame.tscn` | `SpellingGame.gd` | Spelling bee (10 levels: tiny to expert words, advance on 6+ correct) |
+| `PetProfile.tscn` | `PetProfile.gd` | Pet inspect screen with 3D model, stats, rename |
 | `AchievementScreen.tscn` | `AchievementScreen.gd` | Achievement gallery |
 
 ### Autoloaded Singletons
@@ -75,7 +76,10 @@ unicorn, pegasus, dragon, alicorn, dogocorn, catocorn
 UP/DOWN + SPACE to navigate, or hotkeys: Q(Island) V(Vet) G(Random Game) A(Achievements)
 
 ### Island
-WASD or Numpad 8/4/2/6 — camera movement, F — feed, P — play, R — rest, C — collect egg, X — rename pet, LEFT/RIGHT — select pet, ESC — back
+WASD or Arrow keys or Numpad 8/4/2/6 — camera movement, LEFT/RIGHT — select pet, F — feed, P — play, R — rest, E — collect egg, I — inspect pet, X — rename pet, ESC — back
+
+### Pet Profile
+X — rename pet, ESC — back to Island
 
 ### Global
 M — mute/unmute audio, Ctrl+S — manual save
@@ -89,4 +93,9 @@ M — mute/unmute audio, Ctrl+S — manual save
 - Action cooldown of 0.5s on Island prevents input exploits
 - Egg inventory max: 3 eggs, 300s hatch timer each
 - Mini-games are randomly selected (kids can't choose) — levels auto-advance on good performance
+- Completing a mini-game awards an egg (if inventory < 3) plus coins/XP
+- If player ESCs from a mini-game without finishing, they must return to that same game (tracked via `pending_game`)
 - Game levels persist in `game_levels` dict in GameManager, saved to JSON
+- Unicorns have rainbow manes/tails; pegasus have blue manes/tails and pink wings
+- Dragons have green bodies and gold heads
+- Island sky is light blue, transitions to gray during rain
