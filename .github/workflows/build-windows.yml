@@ -16,8 +16,10 @@ jobs:
 
       - name: Download Godot
         run: |
-          $url = "https://downloads.tuxfamily.org/godotengine/3.5.3/Godot_v3.5.3-stable_win64.exe"
-          Invoke-WebRequest -Uri $url -OutFile godot.exe
+          $url = "https://github.com/godotengine/godot/releases/download/3.5.3-stable/Godot_v3.5.3-stable_win64.exe.zip"
+          Invoke-WebRequest -Uri $url -OutFile godot.zip
+          Expand-Archive -Path godot.zip -DestinationPath .
+          Rename-Item "Godot_v3.5.3-stable_win64.exe" godot.exe
 
       - name: Export for Windows
         run: |
