@@ -1,0 +1,48 @@
+name: Build macOS Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download Godot
+        run: |
+          wget https://downloads.tuxfamily.org/godotengine/3.5.3/Godot_v3.5.3-stable_osx.universal.zip
+          unzip Godot_v3.5.3-stable_osx.universal.zip
+
+      - name: Export for macOS
+        run: |
+          mkdir -p build/macos
+          chmod +x Godot.app/Contents/MacOS/Godot
+          ./Godot.app/Contents/MacOS/Godot --path . --export "Mac OSX" "build/macos/UnicornGame.zip"
+
+      - name: Create DMG
+        run: |
+          cd build/macos
+          unzip -q UnicornGame.zip
+          mkdir -p UnicornGame-DMG
+          cp -r UnicornGame.app UnicornGame-DMG/
+          ln -s /Applications UnicornGame-DMG/Applications
+
+          hdiutil create -volname "Unicorn Game" -srcfolder UnicornGame-DMG -ov -format UDZO UnicornGame.dmg
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-installer
+          path: build/macos/UnicornGame.dmg
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/macos/UnicornGame.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

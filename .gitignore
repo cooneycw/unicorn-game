@@ -1,0 +1,32 @@
+# Godot
+.godot/
+*.import
+export.json
+export_presets.cfg.user
+
+# Build artifacts
+build/
+dist/
+*.exe
+*.dmg
+*.app/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python
+__pycache__/
+*.pyc
+
+# Node (if needed for web export)
+node_modules/

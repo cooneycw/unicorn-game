@@ -1,0 +1,14 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Unicorn head -->
+  <circle cx="32" cy="32" r="20" fill="#ffffff" stroke="#000" stroke-width="2"/>
+
+  <!-- Horn -->
+  <polygon points="32,10 28,25 36,25" fill="#ffd700" stroke="#000" stroke-width="1"/>
+
+  <!-- Eyes -->
+  <circle cx="26" cy="28" r="2" fill="#000"/>
+  <circle cx="38" cy="28" r="2" fill="#000"/>
+
+  <!-- Mane -->
+  <path d="M 32 10 Q 20 15 18 25" stroke="#ff69b4" stroke-width="3" fill="none"/>
+</svg>

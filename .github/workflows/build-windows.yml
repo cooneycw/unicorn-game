@@ -1,0 +1,81 @@
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download Godot
+        run: |
+          $url = "https://downloads.tuxfamily.org/godotengine/3.5.3/Godot_v3.5.3-stable_win64.exe"
+          Invoke-WebRequest -Uri $url -OutFile godot.exe
+
+      - name: Export for Windows
+        run: |
+          mkdir -p build/windows
+          .\godot.exe --path . --export "Windows Desktop" "build/windows/UnicornGame.exe"
+
+      - name: Download NSIS
+        run: |
+          choco install nsis -y
+
+      - name: Create NSIS Installer Script
+        run: |
+          @'
+          ; Unicorn Game Installer
+          !include "MUI2.nsh"
+          !include "x64.nsh"
+
+          Name "Unicorn Game"
+          OutFile "build/windows/UnicornGame-Installer.exe"
+          InstallDir "$PROGRAMFILES\UnicornGame"
+
+          !insertmacro MUI_PAGE_WELCOME
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          !insertmacro MUI_PAGE_FINISH
+
+          !insertmacro MUI_LANGUAGE "English"
+
+          Section "Install"
+            SetOutPath "$INSTDIR"
+            File "build/windows/UnicornGame.exe"
+
+            CreateDirectory "$SMPROGRAMS\UnicornGame"
+            CreateShortcut "$SMPROGRAMS\UnicornGame\Unicorn Game.lnk" "$INSTDIR\UnicornGame.exe"
+            CreateShortcut "$DESKTOP\Unicorn Game.lnk" "$INSTDIR\UnicornGame.exe"
+          SectionEnd
+
+          Section "Uninstall"
+            Delete "$INSTDIR\UnicornGame.exe"
+            Delete "$SMPROGRAMS\UnicornGame\Unicorn Game.lnk"
+            Delete "$DESKTOP\Unicorn Game.lnk"
+            RMDir "$SMPROGRAMS\UnicornGame"
+            RMDir "$INSTDIR"
+          SectionEnd
+          '@ | Out-File -Encoding ASCII build/windows/installer.nsi
+
+      - name: Build Installer with NSIS
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" build/windows/installer.nsi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-installer
+          path: build/windows/UnicornGame-Installer.exe
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/windows/UnicornGame-Installer.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

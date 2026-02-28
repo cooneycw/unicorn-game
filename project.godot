@@ -1,0 +1,54 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; but it is possible to edit it manually using a text editor if you are careful.
+; Format syntax: https://docs.godotengine.org/en/stable/tutorials/misc/ini.html
+
+config_version=4
+
+_global_script_classes=[ {
+"base": "Node",
+"class": "GameManager",
+"language": "GDScript",
+"path": "res://scripts/GameManager.gd"
+}, {
+"base": "Node3D",
+"class": "Pet",
+"language": "GDScript",
+"path": "res://scripts/Pet.gd"
+}, {
+"base": "Node",
+"class": "PetManager",
+"language": "GDScript",
+"path": "res://scripts/PetManager.gd"
+} ]
+
+_global_script_class_icons={
+"GameManager": "",
+"Pet": "",
+"PetManager": ""
+}
+
+[application]
+
+config/name="Unicorn Game"
+config/description="A simple unicorn pet game for kids"
+run/main_scene="res://scenes/Main.tscn"
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameManager="*res://scenes/GameManager.tscn"
+
+[debug]
+
+gdscript/warnings/unused_variable=true
+gdscript/warnings/unused_argument=true
+
+[physics]
+
+3d/default_gravity=9.8
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+environment/default_environment="res://default_env.tres"
