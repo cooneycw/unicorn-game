@@ -28,6 +28,28 @@ A simple 3D unicorn pet game for kids, built with Godot Engine.
    - Health increases by 30 points per click
    - Watch their health bar improve!
 
+## Controls
+
+### Mouse & Click Controls
+- **Left Click** - Interact with buttons and UI elements
+- **Left Click on Pets** - Select and interact with pets (on Island)
+- **Move Mouse** - Move the cursor to navigate menus
+
+### In-Game Navigation
+- **"Visit Island" Button** - Travel to the island from Hub
+- **"Visit Vet" Button** - Travel to vet clinic from Hub
+- **"Back to Hub" Button** - Return to main hub from Island or Vet
+- **Pet Selection Buttons** - Click pet names in Vet Clinic to select them
+- **"Heal Selected Pet" Button** - Heal the selected pet (glows green when selected)
+
+### Camera
+- The camera is **fixed** in each location - no manual camera controls needed
+- Simply enjoy the 3D view of your pets!
+
+### Tips for Controllers (if using)
+- Currently the game uses **mouse/touch input only**
+- No keyboard shortcuts or gamepad controls implemented
+
 ## Running the Game
 
 ### Option 1: On Your Local Machine (Recommended)
