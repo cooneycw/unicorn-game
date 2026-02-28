@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 SaveManager="*res://scenes/SaveManager.tscn"
 AchievementManager="*res://scenes/AchievementManager.tscn"
 GameManager="*res://scenes/GameManager.tscn"
+AudioManager="*res://scenes/AudioManager.tscn"
 
 [debug]
 
