@@ -2,15 +2,19 @@ extends Node3D
 
 # Main game scene (Hub) — mood summaries, coins, container layout
 var game_manager
-var selected_menu_item = 0  # 0 = Island, 1 = Vet, 2 = Mini-Game
+var audio_manager
+var selected_menu_item = 0  # 0 = Island, 1 = Vet, 2 = Mini-Game, 3 = Memory Game
+var menu_count = 4
 
 var _pets_container: VBoxContainer
 var _coins_label: Label
 var _menu_label: Label
 var _welcome_label: Label
+var _mute_label: Label
 
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
+	audio_manager = get_tree().root.get_node_or_null("AudioManager")
 
 	_create_island()
 	_create_ui()
@@ -61,7 +65,7 @@ func _create_ui():
 	# Main vertical layout
 	var vbox = VBoxContainer.new()
 	vbox.position = Vector2(10, 10)
-	vbox.size = Vector2(400, 600)
+	vbox.size = Vector2(500, 600)
 	ui.add_child(vbox)
 
 	# Title row
@@ -84,6 +88,13 @@ func _create_ui():
 	_coins_label.add_theme_font_size_override("font_size", 18)
 	_coins_label.add_theme_color_override("font_color", Color.YELLOW)
 	title_row.add_child(_coins_label)
+
+	# Mute indicator
+	_mute_label = Label.new()
+	_mute_label.text = "  [M: mute]"
+	_mute_label.add_theme_font_size_override("font_size", 12)
+	_mute_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	title_row.add_child(_mute_label)
 
 	# Welcome back message
 	_welcome_label = Label.new()
@@ -121,13 +132,12 @@ func _create_ui():
 
 	# Gameplay tips
 	var tips = Label.new()
-	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nEarn coins by playing! Healing at the Vet costs 10 coins.\nTry the Mini-Game to earn extra coins!"
+	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nEarn coins by playing! Try Mini-Game or Memory Match for extra coins!"
 	tips.add_theme_font_size_override("font_size", 12)
 	tips.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(tips)
 
 func _refresh_pet_list():
-	# Clear existing entries
 	for child in _pets_container.get_children():
 		child.queue_free()
 
@@ -137,7 +147,6 @@ func _refresh_pet_list():
 		var mood = game_manager.get_pet_mood(pet_id)
 		var emoji = game_manager.get_mood_emoji(pet_id)
 
-		# Find lowest stat for warning
 		var stats = {
 			"Health": info["health"],
 			"Happiness": info["happiness"],
@@ -208,15 +217,32 @@ func _go_to_minigame():
 		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/MiniGame.tscn")
 
+func _go_to_memory_game():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
+	get_tree().change_scene_to_file("res://scenes/MemoryGame.tscn")
+
 func _update_menu_display():
 	if _menu_label == null:
 		return
-	var lines = ""
-	var items = ["Visit Island (Q)", "Visit Vet (V)", "Play Mini-Game (M)"]
-	for i in range(items.size()):
+	var options = [
+		"Visit Island (Q)",
+		"Visit Vet (V)",
+		"Play Mini-Game (T)",
+		"Memory Match (G)"
+	]
+	var text = ""
+	for i in range(options.size()):
 		var prefix = "> " if i == selected_menu_item else "  "
-		lines += prefix + items[i] + "\n"
-	_menu_label.text = lines.strip_edges()
+		text += prefix + options[i] + "\n"
+	_menu_label.text = text
+
+func _process(_delta: float):
+	# Update mute indicator
+	if _mute_label and audio_manager:
+		var is_muted = AudioServer.is_bus_mute(0)
+		_mute_label.text = "  [MUTED]" if is_muted else "  [M: mute]"
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
@@ -230,24 +256,36 @@ func _input(event):
 		if event.keycode == KEY_V:
 			_go_to_vet()
 			return
-		if event.keycode == KEY_M:
+		if event.keycode == KEY_T:
 			_go_to_minigame()
+			return
+		if event.keycode == KEY_G:
+			_go_to_memory_game()
 			return
 
 		if event.keycode == KEY_UP:
 			selected_menu_item = max(0, selected_menu_item - 1)
 			_update_menu_display()
+			if audio_manager:
+				audio_manager.play_sfx("menu_navigate")
 			return
 		if event.keycode == KEY_DOWN:
-			selected_menu_item = min(2, selected_menu_item + 1)
+			selected_menu_item = min(menu_count - 1, selected_menu_item + 1)
 			_update_menu_display()
+			if audio_manager:
+				audio_manager.play_sfx("menu_navigate")
 			return
 
 		if event.keycode == KEY_SPACE:
-			if selected_menu_item == 0:
-				_go_to_island()
-			elif selected_menu_item == 1:
-				_go_to_vet()
-			else:
-				_go_to_minigame()
+			if audio_manager:
+				audio_manager.play_sfx("menu_select")
+			match selected_menu_item:
+				0:
+					_go_to_island()
+				1:
+					_go_to_vet()
+				2:
+					_go_to_minigame()
+				3:
+					_go_to_memory_game()
 			return
