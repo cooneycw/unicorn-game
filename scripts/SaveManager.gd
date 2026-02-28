@@ -1,10 +1,13 @@
 extends Node
 
-# Autoloaded singleton — handles save/load to user://save_data.json
+# Autoloaded singleton — handles save/load to user://save_data.json + CSV export
 
 const SAVE_PATH = "user://save_data.json"
-const SAVE_VERSION = 2
+const CSV_PATH = "user://pets_export.csv"
+const SAVE_VERSION = 3
 const AUTO_SAVE_INTERVAL = 60.0
+
+signal game_saved
 
 var _auto_save_timer: float = 0.0
 
@@ -42,6 +45,39 @@ func save_game():
 		push_warning("SaveManager: Could not open save file for writing.")
 		return
 	file.store_string(JSON.stringify(data, "\t"))
+	file.close()
+
+	# Also export CSV
+	_export_csv(gm)
+
+	game_saved.emit()
+
+func _export_csv(gm):
+	var file = FileAccess.open(CSV_PATH, FileAccess.WRITE)
+	if file == null:
+		return
+
+	# Header
+	file.store_line("pet_id,name,type,level,xp,health,happiness,hunger,energy,color_variant,has_koala")
+
+	# Data rows
+	for pet_id in gm.pets.keys():
+		var p = gm.pets[pet_id]
+		var line = "%d,%s,%s,%d,%d,%d,%d,%d,%d,%d,%s" % [
+			pet_id,
+			str(p["name"]).replace(",", ";"),  # escape commas in names
+			p["type"],
+			p["level"],
+			p["xp"],
+			p["health"],
+			p["happiness"],
+			p["hunger"],
+			p["energy"],
+			p["color_variant"],
+			str(p.get("has_koala", false))
+		]
+		file.store_line(line)
+
 	file.close()
 
 func load_game() -> Dictionary:

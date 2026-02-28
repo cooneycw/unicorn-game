@@ -171,6 +171,15 @@ func _input(event):
 			_go_back()
 			return
 
+		# Manual save
+		if event.keycode == KEY_S and event.ctrl_pressed:
+			var save_manager = get_tree().root.get_node_or_null("SaveManager")
+			if save_manager:
+				save_manager.save_game()
+			var status_label = get_node("UI/StatusLabel")
+			status_label.text = "Game saved!"
+			return
+
 		if event.keycode == KEY_H:
 			_heal_pet()
 			return

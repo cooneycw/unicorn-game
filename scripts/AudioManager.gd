@@ -4,11 +4,12 @@ extends Node
 
 var _sfx_player: AudioStreamPlayer
 var _muted: bool = false
-var _volume_db: float = 0.0
+var _volume_db: float = -8.0  # softer default volume
 
 func _ready():
 	_sfx_player = AudioStreamPlayer.new()
 	_sfx_player.bus = "Master"
+	_sfx_player.volume_db = _volume_db
 	add_child(_sfx_player)
 
 func _input(event):
@@ -45,6 +46,14 @@ func _generate_sfx(sfx_name: String) -> AudioStreamWAV:
 			return _make_tone_sequence([330, 262], 0.1)
 		"win":
 			return _make_tone_sequence([523, 659, 784, 1047], 0.12)
+		"correct":
+			return _make_tone_sequence([523, 659, 784], 0.08)
+		"wrong":
+			return _make_tone_sequence([330, 262], 0.08)
+		"bark":
+			return _make_tone_sequence([200, 350, 200], 0.06)
+		"meow":
+			return _make_tone_sequence([600, 500, 400], 0.1)
 		_:
 			return null
 
@@ -66,7 +75,7 @@ func _make_tone_sequence(frequencies: Array, note_duration: float) -> AudioStrea
 			var t: float = float(i) / sample_rate
 			var envelope: float = 1.0 - (float(i) / samples_per_note)
 			envelope = envelope * envelope  # quadratic decay
-			var sample_val: float = sin(t * freq * TAU) * envelope * 0.4
+			var sample_val: float = sin(t * freq * TAU) * envelope * 0.25
 			var byte_val: int = clampi(int((sample_val + 0.5) * 255), 0, 255)
 			data[n * samples_per_note + i] = byte_val
 

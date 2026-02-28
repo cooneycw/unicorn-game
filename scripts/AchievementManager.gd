@@ -12,6 +12,15 @@ const ACHIEVEMENTS = {
 	"mini_game_master": {"name": "Mini-Game Master", "desc": "Score 50+ in mini-game", "reward": 30},
 	"coin_collector": {"name": "Coin Collector", "desc": "Earn 500 total coins", "reward": 50},
 	"dedicated_caretaker": {"name": "Dedicated Caretaker", "desc": "Play for 1 hour total", "reward": 30},
+	"dog_lover": {"name": "Dog Lover", "desc": "Own 3 dog-o-corns", "reward": 30},
+	"cat_lover": {"name": "Cat Lover", "desc": "Own 3 cat-o-corns", "reward": 30},
+	"animal_ark": {"name": "Animal Ark", "desc": "Own one of every pet type", "reward": 100},
+	"koala_friend": {"name": "Koala Friend", "desc": "Have a pet with a koala rider", "reward": 20},
+	"math_whiz": {"name": "Math Whiz", "desc": "Get 20 correct in Math Challenge", "reward": 40},
+	"puzzle_solver": {"name": "Puzzle Solver", "desc": "Complete 5 Sudoku puzzles", "reward": 30},
+	"no_hints": {"name": "No Hints Needed", "desc": "Complete a Sudoku without hints", "reward": 20},
+	"spelling_bee": {"name": "Spelling Bee", "desc": "Get 15 correct in Spelling Game", "reward": 35},
+	"word_master": {"name": "Word Master", "desc": "Get 10 correct on Hard spelling", "reward": 50},
 }
 
 var _unlocked: Array = []
@@ -66,6 +75,35 @@ func check_all():
 	if dragon_count >= 3:
 		_try_unlock("dragon_keeper")
 
+	# Dog Lover
+	var dog_count = 0
+	for pid in all_pets.keys():
+		if all_pets[pid]["type"] == "dogocorn":
+			dog_count += 1
+	if dog_count >= 3:
+		_try_unlock("dog_lover")
+
+	# Cat Lover
+	var cat_count = 0
+	for pid in all_pets.keys():
+		if all_pets[pid]["type"] == "catocorn":
+			cat_count += 1
+	if cat_count >= 3:
+		_try_unlock("cat_lover")
+
+	# Animal Ark (one of every pet type)
+	var types_owned = {}
+	for pid in all_pets.keys():
+		types_owned[all_pets[pid]["type"]] = true
+	if types_owned.size() >= 6:
+		_try_unlock("animal_ark")
+
+	# Koala Friend
+	for pid in all_pets.keys():
+		if all_pets[pid].get("has_koala", false):
+			_try_unlock("koala_friend")
+			break
+
 	# Happy Family
 	if all_pets.size() > 0:
 		var all_happy = true
@@ -87,6 +125,22 @@ func check_all():
 func check_mini_game_score(score: int):
 	if score >= 50:
 		_try_unlock("mini_game_master")
+
+func check_math_score(correct_count: int):
+	if correct_count >= 20:
+		_try_unlock("math_whiz")
+
+func check_sudoku_complete(puzzles_completed: int, hints_used: int):
+	if puzzles_completed >= 5:
+		_try_unlock("puzzle_solver")
+	if hints_used == 0:
+		_try_unlock("no_hints")
+
+func check_spelling_score(correct_count: int, was_hard: bool):
+	if correct_count >= 15:
+		_try_unlock("spelling_bee")
+	if was_hard and correct_count >= 10:
+		_try_unlock("word_master")
 
 func _try_unlock(achievement_id: String):
 	if achievement_id in _unlocked:

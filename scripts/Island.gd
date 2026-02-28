@@ -11,7 +11,17 @@ var _feedback_label: Label
 var _stats_label: Label
 var _coins_label: Label
 var _pet_list_label: Label
+var _instructions_label: Label
 var _feedback_timer: float = 0.0
+
+# Action cooldown to prevent exploits (e.g. holding P+R)
+var _action_cooldown: float = 0.0
+const ACTION_COOLDOWN_TIME: float = 0.5  # seconds between actions
+
+# Pet renaming mode
+var _renaming: bool = false
+var _rename_buffer: String = ""
+var _rename_label: Label
 
 # Egg spawning
 var _egg_spawn_timer: float = 0.0
@@ -25,6 +35,22 @@ var _sun_light: DirectionalLight3D
 var _day_time: float = 0.0  # 0-1 representing full day cycle
 var _clouds: Array = []
 
+# Camera (WASD walking)
+var _camera: Camera3D
+const CAMERA_SPEED: float = 8.0
+const CAMERA_BOUNDS: float = 14.0
+
+# Weather — Sun and Moon meshes
+var _sun_mesh: MeshInstance3D
+var _moon_mesh: MeshInstance3D
+
+# Rain system
+var _is_raining: bool = false
+var _rain_timer: float = 0.0
+var _rain_particles: GPUParticles3D
+var _rain_duration: float = 0.0
+var _next_rain_time: float = 0.0
+
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
@@ -32,7 +58,9 @@ func _ready():
 	_create_island_environment()
 	_create_trees()
 	_create_pond()
-	_create_clouds()
+	_create_clouds_3d()
+	_create_sun_moon()
+	_create_rain_system()
 	_spawn_all_pets()
 	_create_ui()
 
@@ -45,6 +73,9 @@ func _ready():
 
 	# Randomize first egg spawn (5-10 minutes)
 	_egg_spawn_interval = randf_range(300.0, 600.0)
+
+	# First rain event in 2-5 minutes
+	_next_rain_time = randf_range(120.0, 300.0)
 
 func _create_island_environment():
 	# Ground
@@ -67,11 +98,11 @@ func _create_island_environment():
 	_sun_light.light_color = Color(1.0, 0.95, 0.8)
 	add_child(_sun_light)
 
-	# Camera
-	var camera = Camera3D.new()
-	camera.position = Vector3(0, 8, 15)
-	camera.look_at(Vector3(0, 0, 0), Vector3.UP)
-	add_child(camera)
+	# Camera (player-controlled)
+	_camera = Camera3D.new()
+	_camera.position = Vector3(0, 8, 15)
+	_camera.look_at(Vector3(0, 0, 0), Vector3.UP)
+	add_child(_camera)
 
 func _create_trees():
 	var tree_positions = [
@@ -132,27 +163,103 @@ func _create_pond():
 	pond.material_override = pond_mat
 	add_child(pond)
 
-func _create_clouds():
-	for i in range(6):
-		var cloud = MeshInstance3D.new()
-		var cloud_mesh = SphereMesh.new()
-		cloud_mesh.radius = randf_range(1.5, 3.0)
-		cloud_mesh.height = randf_range(1.0, 1.5)
-		cloud.mesh = cloud_mesh
-		cloud.position = Vector3(
+func _create_clouds_3d():
+	# 3D puffy cloud clusters instead of flat spheres
+	for i in range(8):
+		var cloud_group = Node3D.new()
+		cloud_group.position = Vector3(
 			randf_range(-20, 20),
 			randf_range(12, 18),
 			randf_range(-15, -5)
 		)
-		cloud.scale = Vector3(1.5, 0.4, 0.8)
+		cloud_group.name = "Cloud_%d" % i
 
-		var cloud_mat = StandardMaterial3D.new()
-		cloud_mat.albedo_color = Color(1, 1, 1, 0.6)
-		cloud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		cloud.material_override = cloud_mat
+		# Each cloud is 3-5 overlapping spheres for puffy 3D look
+		var num_puffs = randi_range(3, 5)
+		for j in range(num_puffs):
+			var puff = MeshInstance3D.new()
+			var puff_mesh = SphereMesh.new()
+			puff_mesh.radius = randf_range(0.8, 1.8)
+			puff_mesh.height = randf_range(0.6, 1.2)
+			puff.mesh = puff_mesh
+			puff.position = Vector3(
+				randf_range(-1.5, 1.5),
+				randf_range(-0.3, 0.3),
+				randf_range(-0.8, 0.8)
+			)
+			puff.scale = Vector3(1.3, 0.5, 0.9)
 
-		add_child(cloud)
-		_clouds.append(cloud)
+			var cloud_mat = StandardMaterial3D.new()
+			cloud_mat.albedo_color = Color(1, 1, 1, 0.55)
+			cloud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			puff.material_override = cloud_mat
+
+			cloud_group.add_child(puff)
+
+		add_child(cloud_group)
+		_clouds.append(cloud_group)
+
+func _create_sun_moon():
+	# Sun — yellow emissive sphere
+	_sun_mesh = MeshInstance3D.new()
+	var sun_sphere = SphereMesh.new()
+	sun_sphere.radius = 1.5
+	sun_sphere.height = 3.0
+	_sun_mesh.mesh = sun_sphere
+
+	var sun_mat = StandardMaterial3D.new()
+	sun_mat.albedo_color = Color(1.0, 0.95, 0.3)
+	sun_mat.emission_enabled = true
+	sun_mat.emission = Color(1.0, 0.9, 0.4)
+	sun_mat.emission_energy_multiplier = 2.0
+	sun_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_sun_mesh.material_override = sun_mat
+	add_child(_sun_mesh)
+
+	# Moon — pale white/blue sphere
+	_moon_mesh = MeshInstance3D.new()
+	var moon_sphere = SphereMesh.new()
+	moon_sphere.radius = 0.8
+	moon_sphere.height = 1.6
+	_moon_mesh.mesh = moon_sphere
+
+	var moon_mat = StandardMaterial3D.new()
+	moon_mat.albedo_color = Color(0.85, 0.88, 0.95)
+	moon_mat.emission_enabled = true
+	moon_mat.emission = Color(0.7, 0.75, 0.9)
+	moon_mat.emission_energy_multiplier = 1.0
+	moon_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_moon_mesh.material_override = moon_mat
+	add_child(_moon_mesh)
+
+func _create_rain_system():
+	_rain_particles = GPUParticles3D.new()
+	_rain_particles.amount = 200
+	_rain_particles.lifetime = 1.5
+	_rain_particles.emitting = false
+	_rain_particles.visibility_aabb = AABB(Vector3(-20, -5, -20), Vector3(40, 25, 40))
+
+	var rain_mat = ParticleProcessMaterial.new()
+	rain_mat.direction = Vector3(0, -1, 0)
+	rain_mat.spread = 5.0
+	rain_mat.initial_velocity_min = 8.0
+	rain_mat.initial_velocity_max = 12.0
+	rain_mat.gravity = Vector3(0, -9.8, 0)
+	rain_mat.scale_min = 0.02
+	rain_mat.scale_max = 0.04
+	rain_mat.color = Color(0.5, 0.6, 0.9, 0.6)
+	rain_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	rain_mat.emission_box_extents = Vector3(15, 0, 15)
+	_rain_particles.process_material = rain_mat
+	_rain_particles.position = Vector3(0, 18, 0)
+
+	# Raindrop mesh (tiny stretched sphere)
+	var drop_mesh = SphereMesh.new()
+	drop_mesh.radius = 0.03
+	drop_mesh.height = 0.15
+	_rain_particles.draw_pass_1 = drop_mesh
+
+	add_child(_rain_particles)
 
 func _spawn_all_pets():
 	var all_pets = game_manager.get_all_pets()
@@ -183,41 +290,57 @@ func _create_ui():
 	var title = Label.new()
 	title.text = "ISLAND"
 	title.position = Vector2(10, 10)
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 22)
 	ui.add_child(title)
 
 	# Coins display
 	_coins_label = Label.new()
 	_coins_label.text = "Coins: %d" % game_manager.coins
-	_coins_label.position = Vector2(10, 40)
-	_coins_label.add_theme_font_size_override("font_size", 18)
+	_coins_label.position = Vector2(10, 35)
+	_coins_label.add_theme_font_size_override("font_size", 16)
 	_coins_label.add_theme_color_override("font_color", Color.YELLOW)
 	ui.add_child(_coins_label)
 
 	# Instructions
-	var instructions = Label.new()
-	instructions.text = "UP/DOWN: select pet | F: feed | P: play | R: rest | E: collect egg | ESC: back"
-	instructions.position = Vector2(10, 65)
-	instructions.add_theme_font_size_override("font_size", 12)
-	ui.add_child(instructions)
+	_instructions_label = Label.new()
+	_instructions_label.text = "WASD: move | UP/DOWN: select | F: feed | P: play | R: rest | E: egg | X: rename | Ctrl+S: save | ESC: back"
+	_instructions_label.position = Vector2(10, 55)
+	_instructions_label.add_theme_font_size_override("font_size", 11)
+	ui.add_child(_instructions_label)
 
-	# Pet list
+	# Rename mode label (hidden by default)
+	_rename_label = Label.new()
+	_rename_label.position = Vector2(200, 300)
+	_rename_label.add_theme_font_size_override("font_size", 22)
+	_rename_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
+	_rename_label.visible = false
+	ui.add_child(_rename_label)
+
+	# Pet list (dynamic position based on pet count)
 	_pet_list_label = Label.new()
-	_pet_list_label.position = Vector2(10, 95)
+	_pet_list_label.position = Vector2(10, 75)
+	_pet_list_label.add_theme_font_size_override("font_size", 13)
 	ui.add_child(_pet_list_label)
 
-	# Stats for selected pet
+	# Stats for selected pet (position will be calculated dynamically)
 	_stats_label = Label.new()
-	_stats_label.position = Vector2(10, 220)
-	_stats_label.add_theme_font_size_override("font_size", 14)
+	_stats_label.position = Vector2(10, 200)
+	_stats_label.add_theme_font_size_override("font_size", 13)
 	ui.add_child(_stats_label)
 
-	# Feedback message
+	# Feedback message (position will be calculated dynamically)
 	_feedback_label = Label.new()
-	_feedback_label.position = Vector2(10, 380)
-	_feedback_label.add_theme_font_size_override("font_size", 16)
+	_feedback_label.position = Vector2(10, 360)
+	_feedback_label.add_theme_font_size_override("font_size", 15)
 	_feedback_label.add_theme_color_override("font_color", Color.GOLD)
 	ui.add_child(_feedback_label)
+
+func _reposition_ui():
+	# Dynamically position stats and feedback based on pet list height
+	var pet_count = pet_ids.size()
+	var pet_list_bottom = 75 + (pet_count * 18) + 8
+	_stats_label.position.y = pet_list_bottom
+	_feedback_label.position.y = pet_list_bottom + 120
 
 func _highlight_selected():
 	if pet_ids.size() == 0:
@@ -231,6 +354,7 @@ func _highlight_selected():
 		var prefix = "> " if i == selected_pet_index else "  "
 		lines += "%s%s Lv%d (%s) %s\n" % [prefix, info["name"], level, info["type"], mood]
 	_pet_list_label.text = lines
+	_reposition_ui()
 
 func _update_stats_display():
 	if pet_ids.size() == 0:
@@ -242,8 +366,9 @@ func _update_stats_display():
 	var xp_info = game_manager.get_xp_progress(pid)
 	var cap = game_manager.get_stat_cap(pid)
 	var xp_str = "XP: %d/%d" % [xp_info["current"], xp_info["next"]] if xp_info["next"] > 0 else "XP: MAX"
-	_stats_label.text = "--- %s Lv%d (%s) --- Mood: %s\nHealth:    %d/%d\nHappiness: %d/%d\nHunger:    %d/%d\nEnergy:    %d/%d\n%s" % [
-		info["name"], info["level"], info["type"], mood,
+	var koala_str = " [Koala Rider!]" if info.get("has_koala", false) else ""
+	_stats_label.text = "--- %s Lv%d (%s)%s --- Mood: %s\nHealth:    %d/%d\nHappiness: %d/%d\nHunger:    %d/%d\nEnergy:    %d/%d\n%s" % [
+		info["name"], info["level"], info["type"], koala_str, mood,
 		info["health"], cap, info["happiness"], cap, info["hunger"], cap, info["energy"], cap,
 		xp_str
 	]
@@ -253,6 +378,10 @@ func _show_feedback(msg: String):
 	_feedback_timer = 2.5
 
 func _process(delta: float):
+	# Action cooldown
+	if _action_cooldown > 0:
+		_action_cooldown -= delta
+
 	if _feedback_timer > 0:
 		_feedback_timer -= delta
 		if _feedback_timer <= 0:
@@ -276,18 +405,82 @@ func _process(delta: float):
 	var sun_angle = _day_time * TAU
 	_sun_light.rotation.x = -PI / 4 + sin(sun_angle) * 0.3
 	var day_factor = (sin(sun_angle) + 1.0) / 2.0  # 0 = night, 1 = day
-	_sun_light.light_energy = lerp(0.3, 1.2, day_factor)
+
+	# Reduce brightness during rain
+	var rain_dimming = 0.6 if _is_raining else 1.0
+	_sun_light.light_energy = lerp(0.3, 1.2, day_factor) * rain_dimming
+
+	var rain_blue_shift = 0.15 if _is_raining else 0.0
 	_sun_light.light_color = Color(
-		lerp(0.4, 1.0, day_factor),
-		lerp(0.3, 0.95, day_factor),
-		lerp(0.6, 0.8, day_factor)
+		lerp(0.4, 1.0, day_factor) - rain_blue_shift,
+		lerp(0.3, 0.95, day_factor) - rain_blue_shift,
+		lerp(0.6, 0.8, day_factor) + rain_blue_shift
 	)
+
+	# Move sun and moon
+	if _sun_mesh:
+		_sun_mesh.position = Vector3(
+			-sin(sun_angle) * 20,
+			cos(sun_angle) * 15 + 10,
+			-15
+		)
+		# Hide sun below horizon
+		_sun_mesh.visible = _sun_mesh.position.y > 2
+
+	if _moon_mesh:
+		_moon_mesh.position = Vector3(
+			sin(sun_angle) * 20,  # opposite side
+			-cos(sun_angle) * 15 + 10,
+			-15
+		)
+		_moon_mesh.visible = _moon_mesh.position.y > 2
 
 	# Drift clouds
 	for cloud in _clouds:
-		cloud.position.x += delta * 0.3
+		cloud.position.x += delta * randf_range(0.2, 0.4)
 		if cloud.position.x > 25:
 			cloud.position.x = -25
+
+	# Rain system
+	_rain_timer += delta
+	if not _is_raining and _rain_timer >= _next_rain_time:
+		_start_rain()
+	elif _is_raining:
+		_rain_duration -= delta
+		if _rain_duration <= 0:
+			_stop_rain()
+
+	# WASD camera movement
+	var move_dir = Vector3.ZERO
+	if Input.is_key_pressed(KEY_W):
+		move_dir.z -= 1
+	if Input.is_key_pressed(KEY_S) and not Input.is_key_pressed(KEY_CTRL):
+		move_dir.z += 1
+	if Input.is_key_pressed(KEY_A):
+		move_dir.x -= 1
+	if Input.is_key_pressed(KEY_D):
+		move_dir.x += 1
+
+	if move_dir.length() > 0:
+		move_dir = move_dir.normalized()
+		_camera.position.x += move_dir.x * CAMERA_SPEED * delta
+		_camera.position.z += move_dir.z * CAMERA_SPEED * delta
+		_camera.position.x = clampf(_camera.position.x, -CAMERA_BOUNDS, CAMERA_BOUNDS)
+		_camera.position.z = clampf(_camera.position.z, -CAMERA_BOUNDS + 5, CAMERA_BOUNDS + 5)
+		# Look forward-down from camera position
+		var look_target = _camera.position + Vector3(0, -4, -8)
+		_camera.look_at(look_target, Vector3.UP)
+
+func _start_rain():
+	_is_raining = true
+	_rain_particles.emitting = true
+	_rain_duration = randf_range(30.0, 60.0)
+
+func _stop_rain():
+	_is_raining = false
+	_rain_particles.emitting = false
+	_rain_timer = 0.0
+	_next_rain_time = randf_range(120.0, 300.0)
 
 func _spawn_egg():
 	_egg_available = true
@@ -361,12 +554,16 @@ func _get_selected_pet() -> Pet:
 		return pets_in_scene[selected_pet_index]
 	return null
 
+func _can_act() -> bool:
+	return _action_cooldown <= 0
+
 func _action_feed():
-	if pet_ids.size() == 0:
+	if pet_ids.size() == 0 or not _can_act():
 		return
 	if game_manager.coins < 5:
 		_show_feedback("Not enough coins! (need 5)")
 		return
+	_action_cooldown = ACTION_COOLDOWN_TIME
 	var pid = pet_ids[selected_pet_index]
 	game_manager.modify_coins(-5)
 	game_manager.modify_stat(pid, "hunger", 20)
@@ -381,8 +578,9 @@ func _action_feed():
 		achievement_mgr.check_all()
 
 func _action_play():
-	if pet_ids.size() == 0:
+	if pet_ids.size() == 0 or not _can_act():
 		return
+	_action_cooldown = ACTION_COOLDOWN_TIME
 	var pid = pet_ids[selected_pet_index]
 	var info = game_manager.get_pet_info(pid)
 	if info["energy"] < 10:
@@ -404,8 +602,9 @@ func _action_play():
 		achievement_mgr.check_all()
 
 func _action_rest():
-	if pet_ids.size() == 0:
+	if pet_ids.size() == 0 or not _can_act():
 		return
+	_action_cooldown = ACTION_COOLDOWN_TIME
 	var pid = pet_ids[selected_pet_index]
 	game_manager.modify_stat(pid, "energy", 20)
 	_show_feedback("%s is resting... zzz" % _get_selected_pet_name())
@@ -416,10 +615,66 @@ func _go_back():
 		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
+func _start_rename():
+	if pet_ids.size() == 0:
+		return
+	_renaming = true
+	_rename_buffer = ""
+	_rename_label.visible = true
+	_rename_label.text = "New name: _\n(Type name, ENTER to confirm, ESC to cancel)"
+
+func _finish_rename():
+	if _rename_buffer.length() > 0 and pet_ids.size() > 0:
+		var pid = pet_ids[selected_pet_index]
+		game_manager.pets[pid]["name"] = _rename_buffer
+		# Update the Pet node's name too
+		if selected_pet_index < pets_in_scene.size():
+			pets_in_scene[selected_pet_index].pet_name = _rename_buffer
+		_show_feedback("Renamed to '%s'!" % _rename_buffer)
+		_highlight_selected()
+		_update_stats_display()
+	_renaming = false
+	_rename_label.visible = false
+	_rename_buffer = ""
+
+func _cancel_rename():
+	_renaming = false
+	_rename_label.visible = false
+	_rename_buffer = ""
+
 func _input(event):
 	if event is InputEventKey and event.pressed:
+		# Rename mode input handling
+		if _renaming:
+			if event.keycode == KEY_ESCAPE:
+				_cancel_rename()
+				return
+			if event.keycode == KEY_ENTER:
+				_finish_rename()
+				return
+			if event.keycode == KEY_BACKSPACE:
+				if _rename_buffer.length() > 0:
+					_rename_buffer = _rename_buffer.substr(0, _rename_buffer.length() - 1)
+				_rename_label.text = "New name: %s_\n(Type name, ENTER to confirm, ESC to cancel)" % _rename_buffer
+				return
+			# Accept letter keys
+			if event.unicode > 0 and _rename_buffer.length() < 20:
+				var ch = char(event.unicode)
+				if ch.strip_edges() != "" or ch == " ":
+					_rename_buffer += ch
+					_rename_label.text = "New name: %s_\n(Type name, ENTER to confirm, ESC to cancel)" % _rename_buffer
+			return
+
 		if event.keycode == KEY_ESCAPE or event.keycode == KEY_B:
 			_go_back()
+			return
+
+		# Manual save
+		if event.keycode == KEY_S and event.ctrl_pressed:
+			var save_manager = get_tree().root.get_node_or_null("SaveManager")
+			if save_manager:
+				save_manager.save_game()
+			_show_feedback("Game saved!")
 			return
 
 		if event.keycode == KEY_UP:
@@ -452,4 +707,8 @@ func _input(event):
 
 		if event.keycode == KEY_E:
 			_collect_egg()
+			return
+
+		if event.keycode == KEY_X:
+			_start_rename()
 			return
