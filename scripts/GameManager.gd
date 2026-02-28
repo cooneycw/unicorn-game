@@ -6,9 +6,12 @@ signal pet_stat_changed(pet_id: int, stat_name: String, new_value: int)
 signal coins_changed(new_amount: int)
 signal pet_mood_changed(pet_id: int, new_mood: String)
 signal welcome_back(message: String)
+signal pet_leveled_up(pet_id: int, new_level: int)
+signal pet_added(pet_id: int)
 
 var pets = {}
 var coins: int = 50
+var total_coins_earned: int = 0
 var current_location = "hub"
 
 var _next_pet_id: int = 1
@@ -19,6 +22,27 @@ const DECAY_INTERVAL: float = 60.0
 var total_play_time: float = 0.0
 var last_login_date: String = ""
 var _welcome_message: String = ""
+
+# Egg inventory — collected but not yet hatched
+var egg_inventory: Array = []  # Array of { "time_remaining": float, "type": String }
+const MAX_EGGS: int = 3
+
+# XP thresholds for levels 1-10
+const LEVEL_THRESHOLDS: Array = [0, 50, 120, 250, 500, 900, 1400, 2000, 2800, 3800]
+
+# Whimsical name parts for hatched pets
+const NAME_PREFIXES: Array = ["Star", "Moon", "Sun", "Cloud", "Crystal", "Shadow",
+	"Glitter", "Shimmer", "Frost", "Ember", "Misty", "Velvet", "Dream", "Dusk", "Dawn"]
+const NAME_SUFFIXES: Array = ["whisper", "beam", "hooves", "mane", "spark", "shine",
+	"dancer", "song", "flight", "heart", "dust", "glow", "petal", "breeze", "storm"]
+
+# Color variants per pet type
+const COLOR_VARIANTS = {
+	"unicorn": [Color.WHITE, Color(1.0, 0.75, 0.8), Color(0.68, 0.85, 1.0), Color(1.0, 0.84, 0.0)],
+	"pegasus": [Color.LIGHT_GRAY, Color(0.75, 0.75, 0.75), Color(0.53, 0.81, 0.92), Color(0.73, 0.56, 0.87)],
+	"dragon": [Color.RED, Color(0.0, 0.75, 0.0), Color(0.4, 0.0, 0.6), Color(1.0, 0.5, 0.0)],
+	"alicorn": [Color(0.6, 0.2, 0.8), Color(0.1, 0.1, 0.7), Color.WHITE],
+}
 
 func _ready():
 	_load_saved_data()
@@ -31,6 +55,9 @@ func _process(delta: float):
 		_decay_timer -= DECAY_INTERVAL
 		_tick_stat_decay()
 
+	# Tick egg hatch timers
+	_tick_eggs(delta)
+
 func _load_saved_data():
 	var save_manager = get_tree().root.get_node_or_null("SaveManager")
 	if save_manager == null:
@@ -42,6 +69,7 @@ func _load_saved_data():
 
 	# Restore state
 	coins = data.get("coins", 50)
+	total_coins_earned = int(data.get("total_coins_earned", 0))
 	_next_pet_id = int(data.get("next_pet_id", 1))
 	total_play_time = float(data.get("total_play_time", 0.0))
 	last_login_date = str(data.get("last_login_date", ""))
@@ -60,7 +88,25 @@ func _load_saved_data():
 			"hunger": int(pet_data.get("hunger", 50)),
 			"energy": int(pet_data.get("energy", 100)),
 			"location": str(pet_data.get("location", "hub")),
+			"xp": int(pet_data.get("xp", 0)),
+			"level": int(pet_data.get("level", 1)),
+			"color_variant": int(pet_data.get("color_variant", 0)),
 		}
+
+	# Restore egg inventory
+	var saved_eggs = data.get("egg_inventory", [])
+	egg_inventory = []
+	for egg_data in saved_eggs:
+		egg_inventory.append({
+			"time_remaining": float(egg_data.get("time_remaining", 300.0)),
+			"type": str(egg_data.get("type", "unicorn")),
+		})
+
+	# Restore achievements
+	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
+	if achievement_mgr:
+		var saved_achievements = data.get("achievements", [])
+		achievement_mgr.load_unlocked(saved_achievements)
 
 	# Offline stat decay
 	var last_played = float(data.get("last_played", 0))
@@ -74,13 +120,12 @@ func _apply_offline_decay(last_played: float):
 	var now = Time.get_unix_time_from_system()
 	var elapsed_seconds = now - last_played
 	if elapsed_seconds < 60:
-		return  # Less than a minute, skip
+		return
 
 	var elapsed_minutes = elapsed_seconds / 60.0
-	# Cap decay at 8 hours worth (480 minutes)
 	elapsed_minutes = minf(elapsed_minutes, 480.0)
 
-	var ticks = int(elapsed_minutes)  # One tick per minute of absence
+	var ticks = int(elapsed_minutes)
 
 	var any_decay = false
 	for pet_id in pets.keys():
@@ -88,7 +133,6 @@ func _apply_offline_decay(last_played: float):
 		if pet["health"] <= 0:
 			continue
 
-		# Hunger decays 2 per tick, happiness 1 per tick (same rate as live decay)
 		var hunger_loss = ticks * 2
 		var happiness_loss = ticks * 1
 
@@ -118,7 +162,6 @@ func _check_daily_bonus():
 	if today != last_login_date:
 		last_login_date = today
 		if coins > 0 or pets.size() > 0:
-			# Only give bonus if this isn't a brand new game
 			coins += 20
 			if _welcome_message == "":
 				_welcome_message = "Welcome back! Daily bonus: +20 coins!"
@@ -134,22 +177,65 @@ func _tick_stat_decay():
 	for pet_id in pets.keys():
 		var pet = pets[pet_id]
 		if pet["health"] <= 0:
-			continue  # resting pets don't decay
+			continue
 
-		# Base decay: hunger -2, happiness -1 (floor at 10)
 		var hunger_decay = -2
 		var happiness_decay = -1
 
-		# Low hunger (<20) accelerates happiness decay
 		if pet["hunger"] < 20:
 			happiness_decay -= 1
 
-		# Low happiness (<20) causes slow health decay
 		if pet["happiness"] < 20:
 			modify_stat(pet_id, "health", -1)
 
 		modify_stat(pet_id, "hunger", hunger_decay)
 		modify_stat(pet_id, "happiness", happiness_decay)
+
+func _tick_eggs(delta: float):
+	var hatched_indices: Array = []
+	for i in range(egg_inventory.size()):
+		egg_inventory[i]["time_remaining"] -= delta
+		if egg_inventory[i]["time_remaining"] <= 0:
+			hatched_indices.append(i)
+
+	hatched_indices.reverse()
+	for i in hatched_indices:
+		_hatch_egg(i)
+
+func _hatch_egg(index: int):
+	var egg = egg_inventory[index]
+	egg_inventory.remove_at(index)
+
+	var pet_type = egg["type"]
+	var pet_name = _generate_whimsical_name()
+	var pet_id = add_pet(pet_name, pet_type)
+	pet_added.emit(pet_id)
+
+func _generate_whimsical_name() -> String:
+	var prefix = NAME_PREFIXES[randi() % NAME_PREFIXES.size()]
+	var suffix = NAME_SUFFIXES[randi() % NAME_SUFFIXES.size()]
+	return prefix + suffix
+
+func _roll_egg_type() -> String:
+	var roll = randf()
+	if roll < 0.50:
+		return "unicorn"
+	elif roll < 0.75:
+		return "pegasus"
+	elif roll < 0.95:
+		return "dragon"
+	else:
+		return "alicorn"
+
+func collect_egg() -> bool:
+	if egg_inventory.size() >= MAX_EGGS:
+		return false
+	var pet_type = _roll_egg_type()
+	egg_inventory.append({
+		"time_remaining": 300.0,
+		"type": pet_type
+	})
+	return true
 
 func add_pet(pet_name: String, pet_type: String) -> int:
 	var pet_id = _next_pet_id
@@ -161,9 +247,17 @@ func add_pet(pet_name: String, pet_type: String) -> int:
 		"happiness": 100,
 		"hunger": 50,
 		"energy": 100,
-		"location": "hub"
+		"location": "hub",
+		"xp": 0,
+		"level": 1,
+		"color_variant": 0,
 	}
 	return pet_id
+
+func get_stat_cap(pet_id: int) -> int:
+	if pet_id not in pets:
+		return 100
+	return 100 + pets[pet_id]["level"] * 5
 
 func modify_stat(pet_id: int, stat_name: String, amount: int):
 	if pet_id not in pets:
@@ -173,22 +267,76 @@ func modify_stat(pet_id: int, stat_name: String, amount: int):
 
 	var old_value = pets[pet_id][stat_name]
 	var floor_value = 10 if stat_name in ["hunger", "happiness"] else 0
-	var new_value = clampi(old_value + amount, floor_value, 100)
+	var cap = get_stat_cap(pet_id)
+	var new_value = clampi(old_value + amount, floor_value, cap)
 	pets[pet_id][stat_name] = new_value
 
 	if new_value != old_value:
 		pet_stat_changed.emit(pet_id, stat_name, new_value)
 
-	# Check for mood change
 	var new_mood = get_pet_mood(pet_id)
 	pet_mood_changed.emit(pet_id, new_mood)
 
-	# Health at 0 = resting state
 	if stat_name == "health" and new_value <= 0:
 		pets[pet_id]["health"] = 0
 
+func add_xp(pet_id: int, amount: int):
+	if pet_id not in pets:
+		return
+	var pet = pets[pet_id]
+	pet["xp"] += amount
+	var old_level = pet["level"]
+
+	while pet["level"] < LEVEL_THRESHOLDS.size() and pet["xp"] >= LEVEL_THRESHOLDS[pet["level"]]:
+		pet["level"] += 1
+
+	if pet["level"] > old_level:
+		pet_leveled_up.emit(pet_id, pet["level"])
+
+func get_level(pet_id: int) -> int:
+	if pet_id not in pets:
+		return 1
+	return pets[pet_id]["level"]
+
+func get_xp_progress(pet_id: int) -> Dictionary:
+	if pet_id not in pets:
+		return {"current": 0, "next": 50, "level": 1}
+	var pet = pets[pet_id]
+	var level = pet["level"]
+	var current_xp = pet["xp"]
+	var next_threshold = LEVEL_THRESHOLDS[level] if level < LEVEL_THRESHOLDS.size() else -1
+	return {"current": current_xp, "next": next_threshold, "level": level}
+
+func set_color_variant(pet_id: int, variant: int) -> bool:
+	if pet_id not in pets:
+		return false
+	var pet = pets[pet_id]
+	if pet["level"] < 5:
+		return false
+	if coins < 50:
+		return false
+	var type_variants = COLOR_VARIANTS.get(pet["type"], [])
+	if variant < 0 or variant >= type_variants.size():
+		return false
+	modify_coins(-50)
+	pet["color_variant"] = variant
+	pet_stat_changed.emit(pet_id, "color_variant", variant)
+	return true
+
+func get_pet_color(pet_id: int) -> Color:
+	if pet_id not in pets:
+		return Color.WHITE
+	var pet = pets[pet_id]
+	var type_variants = COLOR_VARIANTS.get(pet["type"], [Color.WHITE])
+	var variant = pet["color_variant"]
+	if variant >= 0 and variant < type_variants.size():
+		return type_variants[variant]
+	return type_variants[0]
+
 func modify_coins(amount: int):
 	coins = max(0, coins + amount)
+	if amount > 0:
+		total_coins_earned += amount
 	coins_changed.emit(coins)
 
 func heal_pet(pet_id: int, heal_amount: int = 30) -> bool:
@@ -198,6 +346,7 @@ func heal_pet(pet_id: int, heal_amount: int = 30) -> bool:
 		return false
 	modify_coins(-10)
 	modify_stat(pet_id, "health", heal_amount)
+	add_xp(pet_id, 3)
 	return true
 
 func get_pet_mood(pet_id: int) -> String:

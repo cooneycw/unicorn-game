@@ -3,7 +3,7 @@ extends Node
 # Autoloaded singleton — handles save/load to user://save_data.json
 
 const SAVE_PATH = "user://save_data.json"
-const SAVE_VERSION = 1
+const SAVE_VERSION = 2
 const AUTO_SAVE_INTERVAL = 60.0
 
 var _auto_save_timer: float = 0.0
@@ -19,14 +19,22 @@ func save_game():
 	if gm == null:
 		return
 
+	var achievements = []
+	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
+	if achievement_mgr:
+		achievements = achievement_mgr.get_unlocked_ids()
+
 	var data = {
 		"version": SAVE_VERSION,
 		"coins": gm.coins,
+		"total_coins_earned": gm.total_coins_earned,
 		"next_pet_id": gm._next_pet_id,
 		"pets": gm.pets,
+		"egg_inventory": gm.egg_inventory,
 		"last_played": Time.get_unix_time_from_system(),
 		"total_play_time": gm.total_play_time,
 		"last_login_date": gm.last_login_date,
+		"achievements": achievements,
 	}
 
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)

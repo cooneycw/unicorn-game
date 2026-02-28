@@ -5,7 +5,7 @@ class_name Pet
 
 var pet_id: int
 var pet_name: String
-var pet_type: String  # "unicorn", "pegasus", "dragon"
+var pet_type: String  # "unicorn", "pegasus", "dragon", "alicorn"
 
 var _game_manager
 var _audio_manager
@@ -16,6 +16,7 @@ var _body_mesh: MeshInstance3D
 var _head_mesh: MeshInstance3D
 var _wing_l: MeshInstance3D
 var _wing_r: MeshInstance3D
+var _iridescent_time: float = 0.0
 
 # Particles
 var _happy_particles: GPUParticles3D
@@ -41,6 +42,8 @@ func _ready():
 	_build_type_features()
 	_build_label()
 	_build_particles()
+
+	_game_manager.pet_leveled_up.connect(_on_pet_leveled_up)
 
 	# Randomize bob phase so pets don't all bob in sync
 	_bob_time = randf() * TAU
@@ -163,6 +166,22 @@ func _build_type_features():
 			mat.albedo_color = _get_pet_color().darkened(0.2)
 			tail.material_override = mat
 			add_child(tail)
+		"alicorn":
+			# Wings + horn (horn already built above)
+			for side in [-1.0, 1.0]:
+				var wing = MeshInstance3D.new()
+				var box = BoxMesh.new()
+				box.size = Vector3(0.7, 0.05, 0.35)
+				wing.mesh = box
+				wing.position = Vector3(side * 0.65, 0.2, 0.0)
+				wing.rotation.z = side * -0.3
+
+				var mat = StandardMaterial3D.new()
+				mat.albedo_color = Color(0.8, 0.6, 0.95)
+				wing.material_override = mat
+
+				wing.name = "Wing_" + ("L" if side < 0 else "R")
+				add_child(wing)
 
 			# Small wing cones
 			for side in [-1.0, 1.0]:
@@ -244,7 +263,8 @@ func _update_label():
 	if _label3d == null or _game_manager == null:
 		return
 	var emoji = _game_manager.get_mood_emoji(pet_id)
-	_label3d.text = pet_name + " " + emoji
+	var level = _game_manager.get_level(pet_id)
+	_label3d.text = "%s Lv%d %s" % [pet_name, level, emoji]
 
 func _process(delta: float):
 	_bob_time += delta
@@ -289,6 +309,16 @@ func _process(delta: float):
 		if tail_node:
 			tail_node.rotation.y = sin(_bob_time * 1.5) * 0.3
 
+	# Iridescent color cycle for alicorn with variant 2
+	if pet_type == "alicorn" and _body_mesh and _body_mesh.material_override:
+		var info = _game_manager.get_pet_info(pet_id)
+		if info and info["color_variant"] == 2:
+			_iridescent_time += delta
+			var r = (sin(_iridescent_time * 1.0) + 1.0) / 2.0
+			var g = (sin(_iridescent_time * 1.3 + 2.0) + 1.0) / 2.0
+			var b = (sin(_iridescent_time * 1.7 + 4.0) + 1.0) / 2.0
+			_body_mesh.material_override.albedo_color = Color(r, g, b)
+
 	# Particle effects based on mood
 	_happy_particles.emitting = mood == "happy"
 	_sad_particles.emitting = mood == "sad" or mood == "hungry"
@@ -325,6 +355,11 @@ func _process_wander(delta: float):
 		var target_angle = atan2(dir.x, dir.z)
 		rotation.y = lerp_angle(rotation.y, target_angle, delta * 3.0)
 
+func _on_pet_leveled_up(leveled_pet_id: int, _new_level: int):
+	if leveled_pet_id != pet_id:
+		return
+	do_level_up_reaction()
+
 func do_happy_reaction():
 	var tween = create_tween()
 	tween.tween_property(self, "scale", Vector3(1.2, 1.2, 1.2), 0.15)
@@ -353,7 +388,32 @@ func do_heal_reaction():
 	if _audio_manager:
 		_audio_manager.play_sfx("heal")
 
+func do_level_up_reaction():
+	# Bigger bounce + flash
+	var tween = create_tween()
+	tween.tween_property(self, "scale", Vector3(1.4, 1.4, 1.4), 0.2)
+	tween.tween_property(self, "scale", Vector3(0.9, 0.9, 0.9), 0.1)
+	tween.tween_property(self, "scale", Vector3(1.1, 1.1, 1.1), 0.1)
+	tween.tween_property(self, "scale", Vector3(1.0, 1.0, 1.0), 0.1)
+
+	# Show "LEVEL UP!" text briefly
+	var level_label = Label3D.new()
+	level_label.text = "LEVEL UP!"
+	level_label.font_size = 64
+	level_label.position.y = 1.8
+	level_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	level_label.no_depth_test = true
+	level_label.modulate = Color.GOLD
+	add_child(level_label)
+
+	var label_tween = create_tween()
+	label_tween.tween_property(level_label, "position:y", 2.5, 1.5)
+	label_tween.parallel().tween_property(level_label, "modulate:a", 0.0, 1.5)
+	label_tween.tween_callback(level_label.queue_free)
+
 func _get_pet_color() -> Color:
+	if _game_manager:
+		return _game_manager.get_pet_color(pet_id)
 	match pet_type:
 		"unicorn":
 			return Color.WHITE
@@ -361,5 +421,7 @@ func _get_pet_color() -> Color:
 			return Color.LIGHT_GRAY
 		"dragon":
 			return Color.RED
+		"alicorn":
+			return Color(0.6, 0.2, 0.8)
 		_:
 			return Color.WHITE
