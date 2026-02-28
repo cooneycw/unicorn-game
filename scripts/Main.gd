@@ -4,7 +4,16 @@ extends Node3D
 var game_manager
 var audio_manager
 var selected_menu_item = 0
-var menu_count = 8
+var menu_count = 4
+
+# Mini-game scenes for random selection
+const MINI_GAME_SCENES: Array = [
+	"res://scenes/MiniGame.tscn",
+	"res://scenes/MemoryGame.tscn",
+	"res://scenes/MathGame.tscn",
+	"res://scenes/SudokuGame.tscn",
+	"res://scenes/SpellingGame.tscn",
+]
 
 var _pets_container: VBoxContainer
 var _coins_label: Label
@@ -146,7 +155,7 @@ func _create_ui():
 
 	# Gameplay tips
 	var tips = Label.new()
-	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nCollect eggs on the Island — they hatch into new pets!\nEarn coins by playing! Try the mini-games for extra coins!\nCtrl+S to save anytime."
+	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nCollect eggs on the Island — they hatch into new pets!\nPress G for a surprise mini-game — you never know which one you'll get!\nCtrl+S to save anytime."
 	tips.add_theme_font_size_override("font_size", 12)
 	tips.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(tips)
@@ -258,35 +267,12 @@ func _go_to_vet():
 		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/VetClinic.tscn")
 
-func _go_to_minigame():
+func _go_to_random_game():
 	var save_manager = get_tree().root.get_node_or_null("SaveManager")
 	if save_manager:
 		save_manager.on_scene_transition()
-	get_tree().change_scene_to_file("res://scenes/MiniGame.tscn")
-
-func _go_to_memory_game():
-	var save_manager = get_tree().root.get_node_or_null("SaveManager")
-	if save_manager:
-		save_manager.on_scene_transition()
-	get_tree().change_scene_to_file("res://scenes/MemoryGame.tscn")
-
-func _go_to_math_game():
-	var save_manager = get_tree().root.get_node_or_null("SaveManager")
-	if save_manager:
-		save_manager.on_scene_transition()
-	get_tree().change_scene_to_file("res://scenes/MathGame.tscn")
-
-func _go_to_sudoku():
-	var save_manager = get_tree().root.get_node_or_null("SaveManager")
-	if save_manager:
-		save_manager.on_scene_transition()
-	get_tree().change_scene_to_file("res://scenes/SudokuGame.tscn")
-
-func _go_to_spelling():
-	var save_manager = get_tree().root.get_node_or_null("SaveManager")
-	if save_manager:
-		save_manager.on_scene_transition()
-	get_tree().change_scene_to_file("res://scenes/SpellingGame.tscn")
+	var scene_path = MINI_GAME_SCENES[randi() % MINI_GAME_SCENES.size()]
+	get_tree().change_scene_to_file(scene_path)
 
 func _go_to_achievements():
 	var save_manager = get_tree().root.get_node_or_null("SaveManager")
@@ -300,11 +286,7 @@ func _update_menu_display():
 	var options = [
 		"Visit Island (Q)",
 		"Visit Vet (V)",
-		"Play Treat Catch (T)",
-		"Memory Match (G)",
-		"Math Challenge (N)",
-		"Sudoku Puzzle (U)",
-		"Spelling Bee (L)",
+		"Play a Game! (G)  [random surprise]",
 		"Achievements (A)"
 	]
 	var text = ""
@@ -340,20 +322,8 @@ func _input(event):
 		if event.keycode == KEY_V:
 			_go_to_vet()
 			return
-		if event.keycode == KEY_T:
-			_go_to_minigame()
-			return
 		if event.keycode == KEY_G:
-			_go_to_memory_game()
-			return
-		if event.keycode == KEY_N:
-			_go_to_math_game()
-			return
-		if event.keycode == KEY_U:
-			_go_to_sudoku()
-			return
-		if event.keycode == KEY_L:
-			_go_to_spelling()
+			_go_to_random_game()
 			return
 		if event.keycode == KEY_A:
 			_go_to_achievements()
@@ -381,15 +351,7 @@ func _input(event):
 				1:
 					_go_to_vet()
 				2:
-					_go_to_minigame()
+					_go_to_random_game()
 				3:
-					_go_to_memory_game()
-				4:
-					_go_to_math_game()
-				5:
-					_go_to_sudoku()
-				6:
-					_go_to_spelling()
-				7:
 					_go_to_achievements()
 			return

@@ -1,13 +1,17 @@
 extends Node2D
 
-# Spelling Game — multiple choice: which is the correct spelling?
-# UP/DOWN to highlight choice, SPACE to confirm
+# Spelling Game — 10 auto-advancing levels
+# L1: 3-letter easy  L2: 3-4 letter  L3: 4-letter common
+# L4: 4-5 letter  L5: 5-letter common  L6: 5-6 letter
+# L7: 6-7 letter  L8: 7-8 letter challenge
+# L9: Hard words  L10: Expert words
+# Advance: 6+ correct in 60 seconds
 
 var game_manager
 var audio_manager
 
-# Word lists by difficulty
-const WORDS_EASY: Array = [
+# 10 word tiers
+const WORDS_L1: Array = [
 	{"word": "cat", "wrong": ["kat", "catt", "cht"]},
 	{"word": "dog", "wrong": ["dgo", "dogg", "dag"]},
 	{"word": "sun", "wrong": ["son", "sunn", "san"]},
@@ -18,6 +22,9 @@ const WORDS_EASY: Array = [
 	{"word": "cup", "wrong": ["kup", "cupp", "cap"]},
 	{"word": "bed", "wrong": ["bedd", "beed", "bid"]},
 	{"word": "map", "wrong": ["mapp", "mep", "nap"]},
+]
+
+const WORDS_L2: Array = [
 	{"word": "fish", "wrong": ["fich", "fis", "fhis"]},
 	{"word": "book", "wrong": ["bouk", "buk", "bok"]},
 	{"word": "tree", "wrong": ["tre", "trea", "trey"]},
@@ -26,59 +33,144 @@ const WORDS_EASY: Array = [
 	{"word": "bird", "wrong": ["brid", "birrd", "burd"]},
 	{"word": "frog", "wrong": ["frogg", "forg", "froq"]},
 	{"word": "cake", "wrong": ["caek", "kake", "cak"]},
+	{"word": "door", "wrong": ["dor", "dorr", "doir"]},
+	{"word": "play", "wrong": ["plae", "plai", "paly"]},
 ]
 
-const WORDS_MEDIUM: Array = [
+const WORDS_L3: Array = [
+	{"word": "blue", "wrong": ["bloo", "blew", "bleu"]},
+	{"word": "jump", "wrong": ["jamp", "jupm", "jomp"]},
+	{"word": "milk", "wrong": ["milc", "mlk", "melk"]},
+	{"word": "hand", "wrong": ["hnad", "handd", "hend"]},
+	{"word": "food", "wrong": ["fud", "foud", "foode"]},
+	{"word": "rain", "wrong": ["rane", "rian", "rayn"]},
+	{"word": "boat", "wrong": ["bote", "bot", "baot"]},
+	{"word": "king", "wrong": ["kng", "kinng", "kign"]},
+	{"word": "wolf", "wrong": ["wlof", "wulf", "wolff"]},
+	{"word": "farm", "wrong": ["fam", "farme", "frum"]},
+]
+
+const WORDS_L4: Array = [
 	{"word": "happy", "wrong": ["hapy", "hppy", "happey"]},
+	{"word": "sunny", "wrong": ["suny", "sunney", "sonny"]},
+	{"word": "cloud", "wrong": ["clowd", "claud", "cloude"]},
+	{"word": "funny", "wrong": ["funy", "funney", "funnee"]},
+	{"word": "light", "wrong": ["lite", "lihgt", "liht"]},
+	{"word": "water", "wrong": ["watter", "warter", "woter"]},
+	{"word": "green", "wrong": ["grean", "gren", "greeen"]},
+	{"word": "sleep", "wrong": ["sleap", "slep", "slepe"]},
+	{"word": "house", "wrong": ["hous", "howse", "houes"]},
+	{"word": "small", "wrong": ["smal", "smaul", "smoll"]},
+]
+
+const WORDS_L5: Array = [
 	{"word": "friend", "wrong": ["freind", "frend", "freend"]},
 	{"word": "school", "wrong": ["skool", "scool", "shool"]},
+	{"word": "garden", "wrong": ["gardan", "graden", "gardin"]},
+	{"word": "dragon", "wrong": ["dragin", "dragan", "dragen"]},
+	{"word": "castle", "wrong": ["castel", "cassle", "cassel"]},
+	{"word": "orange", "wrong": ["oraneg", "oringe", "oreneg"]},
+	{"word": "flower", "wrong": ["flouwer", "flowr", "flowur"]},
+	{"word": "winter", "wrong": ["wintr", "wintir", "wynter"]},
+	{"word": "dinner", "wrong": ["diner", "dinnr", "dinnar"]},
+	{"word": "sister", "wrong": ["sistr", "sistir", "sistor"]},
+]
+
+const WORDS_L6: Array = [
 	{"word": "because", "wrong": ["becuase", "becuz", "becouse"]},
 	{"word": "people", "wrong": ["peple", "poeple", "peeple"]},
 	{"word": "animal", "wrong": ["animle", "anmal", "anmial"]},
 	{"word": "family", "wrong": ["famly", "famliy", "famely"]},
-	{"word": "garden", "wrong": ["gardan", "graden", "gardin"]},
-	{"word": "dragon", "wrong": ["dragin", "dragan", "dragen"]},
-	{"word": "castle", "wrong": ["castel", "cassle", "cassel"]},
 	{"word": "magic", "wrong": ["majic", "magik", "maigc"]},
+	{"word": "kitchen", "wrong": ["kichen", "kitchin", "kitchan"]},
+	{"word": "weather", "wrong": ["wether", "wheather", "weater"]},
+	{"word": "special", "wrong": ["speshal", "specal", "spechial"]},
+	{"word": "picture", "wrong": ["pictur", "piccher", "pikture"]},
+	{"word": "monster", "wrong": ["monstor", "monstar", "monstir"]},
+]
+
+const WORDS_L7: Array = [
 	{"word": "princess", "wrong": ["prinsess", "princes", "prinses"]},
 	{"word": "rainbow", "wrong": ["rainbo", "ranbow", "rainebow"]},
 	{"word": "sparkle", "wrong": ["sparcle", "sparkl", "spakle"]},
-	{"word": "special", "wrong": ["speshal", "specal", "spechial"]},
 	{"word": "unicorn", "wrong": ["unikorn", "unicron", "unocorn"]},
-	{"word": "kitchen", "wrong": ["kichen", "kitchin", "kitchan"]},
-	{"word": "weather", "wrong": ["wether", "wheather", "weater"]},
+	{"word": "dolphin", "wrong": ["dolfin", "dolphon", "dolpin"]},
+	{"word": "brought", "wrong": ["brougt", "brough", "brougth"]},
+	{"word": "thought", "wrong": ["thougt", "thougth", "thort"]},
+	{"word": "holiday", "wrong": ["holliday", "holyday", "holladay"]},
+	{"word": "journey", "wrong": ["journy", "jerney", "journee"]},
+	{"word": "trouble", "wrong": ["truble", "troubel", "trubbel"]},
 ]
 
-const WORDS_HARD: Array = [
+const WORDS_L8: Array = [
 	{"word": "adventure", "wrong": ["adventur", "advenchure", "advencher"]},
 	{"word": "treasure", "wrong": ["tresure", "treasur", "tresher"]},
+	{"word": "different", "wrong": ["diffrent", "differant", "diferent"]},
+	{"word": "disappear", "wrong": ["dissapear", "disapear", "disappeer"]},
+	{"word": "important", "wrong": ["importent", "importint", "imporant"]},
+	{"word": "dangerous", "wrong": ["dangrous", "dangerus", "dangeros"]},
+	{"word": "character", "wrong": ["charactor", "charectar", "charackter"]},
+	{"word": "celebrate", "wrong": ["celebrait", "celibrate", "celebreat"]},
+	{"word": "invisible", "wrong": ["invisable", "invisibel", "invisble"]},
+	{"word": "wonderful", "wrong": ["wonderfull", "wanderful", "wunderful"]},
+]
+
+const WORDS_L9: Array = [
 	{"word": "mysterious", "wrong": ["misterious", "mystirious", "mysterius"]},
 	{"word": "enormous", "wrong": ["enormus", "enourmous", "enormos"]},
 	{"word": "brilliant", "wrong": ["brillant", "briliant", "brillent"]},
 	{"word": "incredible", "wrong": ["incredable", "increadible", "incredibel"]},
 	{"word": "beautiful", "wrong": ["beutiful", "beautful", "butiful"]},
+	{"word": "knowledge", "wrong": ["knolwedge", "knowlege", "nowledge"]},
+	{"word": "excitable", "wrong": ["exciteable", "exiteable", "exitable"]},
+	{"word": "yesterday", "wrong": ["yestarday", "yesturday", "yesterdey"]},
+	{"word": "attention", "wrong": ["atention", "attension", "atenshun"]},
+	{"word": "delicious", "wrong": ["delishus", "delicous", "delisious"]},
+]
+
+const WORDS_L10: Array = [
 	{"word": "imagination", "wrong": ["imagenation", "imaginashun", "imanigation"]},
 	{"word": "extraordinary", "wrong": ["extrordinary", "extraodinary", "extreordinary"]},
-	{"word": "disappear", "wrong": ["dissapear", "disapear", "disappeer"]},
-	{"word": "different", "wrong": ["diffrent", "differant", "diferent"]},
 	{"word": "necessary", "wrong": ["neccessary", "necesary", "neccesary"]},
 	{"word": "separate", "wrong": ["seperate", "separete", "seprate"]},
 	{"word": "Wednesday", "wrong": ["Wensday", "Wedensday", "Wendesday"]},
 	{"word": "strength", "wrong": ["strenth", "strenght", "stength"]},
+	{"word": "environment", "wrong": ["enviroment", "enviornment", "envirnoment"]},
+	{"word": "temperature", "wrong": ["temperture", "tempurature", "tempreture"]},
+	{"word": "independent", "wrong": ["independant", "independint", "indipendent"]},
+	{"word": "encyclopedia", "wrong": ["encylopedia", "encyclopaedia", "enciclopedia"]},
+]
+
+const ALL_WORD_LEVELS: Array = [
+	[], # unused index 0
+	WORDS_L1, WORDS_L2, WORDS_L3, WORDS_L4, WORDS_L5,
+	WORDS_L6, WORDS_L7, WORDS_L8, WORDS_L9, WORDS_L10,
+]
+
+const LEVEL_NAMES: Array = [
+	"",
+	"Tiny Words",
+	"Short Words",
+	"Common Words",
+	"Growing Words",
+	"Everyday Words",
+	"Tricky Words",
+	"Bigger Words",
+	"Challenge Words",
+	"Hard Words",
+	"Expert Words",
 ]
 
 # Game state
 const GAME_DURATION: float = 60.0
+const ADVANCE_THRESHOLD: int = 6
 var _time_remaining: float = GAME_DURATION
 var _game_active: bool = false
 var _correct_count: int = 0
 var _wrong_count: int = 0
 var _coins_earned: int = 0
 var _active_pet_id: int = -1
-
-# Difficulty
-var difficulty: int = 0
-var selecting_difficulty: bool = true
+var _level: int = 1
 
 # Current question
 var _current_word: String = ""
@@ -89,13 +181,12 @@ var _used_words: Array = []
 # UI
 var _time_label: Label
 var _score_label: Label
+var _level_label: Label
 var _prompt_label: Label
 var _choices_labels: Array = []
 var _feedback_label: Label
 var _result_label: Label
-var _difficulty_label: Label
 var _info_label: Label
-var _feedback_timer: float = 0.0
 var _waiting_next: bool = false
 
 var _screen_width: float = 1152.0
@@ -104,6 +195,8 @@ var _screen_height: float = 648.0
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
+
+	_level = game_manager.get_game_level("spelling")
 
 	var all_pets = game_manager.get_all_pets()
 	if all_pets.size() > 0:
@@ -115,7 +208,7 @@ func _ready():
 		_screen_height = viewport_size.y
 
 	_build_ui()
-	_show_difficulty_select()
+	_start_game()
 
 func _build_ui():
 	# Background
@@ -131,6 +224,13 @@ func _build_ui():
 	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	add_child(title)
+
+	# Level display
+	_level_label = Label.new()
+	_level_label.position = Vector2(_screen_width / 2.0 - 80, 45)
+	_level_label.add_theme_font_size_override("font_size", 16)
+	_level_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	add_child(_level_label)
 
 	# Time display
 	_time_label = Label.new()
@@ -150,21 +250,19 @@ func _build_ui():
 	_prompt_label.position = Vector2(_screen_width / 2.0 - 200, 100)
 	_prompt_label.add_theme_font_size_override("font_size", 24)
 	_prompt_label.add_theme_color_override("font_color", Color(0.8, 0.8, 1.0))
-	_prompt_label.visible = false
 	add_child(_prompt_label)
 
 	# Choice labels
 	for i in range(4):
 		var choice = Label.new()
-		choice.position = Vector2(_screen_width / 2.0 - 120, 180 + i * 55)
+		choice.position = Vector2(_screen_width / 2.0 - 120, 170 + i * 55)
 		choice.add_theme_font_size_override("font_size", 26)
-		choice.visible = false
 		add_child(choice)
 		_choices_labels.append(choice)
 
 	# Feedback
 	_feedback_label = Label.new()
-	_feedback_label.position = Vector2(_screen_width / 2.0 - 180, 420)
+	_feedback_label.position = Vector2(_screen_width / 2.0 - 180, 410)
 	_feedback_label.add_theme_font_size_override("font_size", 18)
 	add_child(_feedback_label)
 
@@ -173,13 +271,8 @@ func _build_ui():
 	_info_label.position = Vector2(15, _screen_height - 30)
 	_info_label.add_theme_font_size_override("font_size", 12)
 	_info_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	_info_label.text = "UP/DOWN: select answer | SPACE: confirm | ESC: back"
 	add_child(_info_label)
-
-	# Difficulty selector
-	_difficulty_label = Label.new()
-	_difficulty_label.position = Vector2(300, 200)
-	_difficulty_label.add_theme_font_size_override("font_size", 18)
-	add_child(_difficulty_label)
 
 	# Result (hidden)
 	_result_label = Label.new()
@@ -188,22 +281,7 @@ func _build_ui():
 	_result_label.visible = false
 	add_child(_result_label)
 
-func _show_difficulty_select():
-	selecting_difficulty = true
-	_update_difficulty_display()
-	_info_label.text = "UP/DOWN: choose difficulty | SPACE: start | ESC: back to hub"
-
-func _update_difficulty_display():
-	var lines = ""
-	var options = ["Easy (simple words)", "Medium (everyday words)", "Hard (challenge words)"]
-	for i in range(options.size()):
-		var prefix = "> " if i == difficulty else "  "
-		lines += prefix + options[i] + "\n"
-	_difficulty_label.text = "Choose Difficulty:\n\n" + lines
-
 func _start_game():
-	selecting_difficulty = false
-	_difficulty_label.text = ""
 	_game_active = true
 	_time_remaining = GAME_DURATION
 	_correct_count = 0
@@ -212,32 +290,23 @@ func _start_game():
 	_used_words.clear()
 	_waiting_next = false
 
+	_level_label.text = "Level %d: %s" % [_level, LEVEL_NAMES[_level]]
 	_prompt_label.visible = true
 	for label in _choices_labels:
 		label.visible = true
 	_result_label.visible = false
 
-	_info_label.text = "UP/DOWN: select answer | SPACE: confirm | ESC: back"
 	_generate_question()
 	_update_ui()
 
-func _get_word_list() -> Array:
-	match difficulty:
-		0: return WORDS_EASY
-		1: return WORDS_MEDIUM
-		2: return WORDS_HARD
-		_: return WORDS_EASY
-
 func _generate_question():
-	var word_list = _get_word_list()
+	var word_list = ALL_WORD_LEVELS[_level]
 
-	# Avoid repeats within session
 	var available: Array = []
 	for entry in word_list:
 		if entry["word"] not in _used_words:
 			available.append(entry)
 
-	# If all used, reset
 	if available.size() == 0:
 		_used_words.clear()
 		available = word_list.duplicate()
@@ -246,7 +315,6 @@ func _generate_question():
 	_current_word = entry["word"]
 	_used_words.append(_current_word)
 
-	# Build choices: correct + 3 wrong, shuffled
 	_choices = [_current_word]
 	for w in entry["wrong"]:
 		_choices.append(w)
@@ -288,8 +356,6 @@ func _submit_answer():
 		_feedback_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.3))
 
 	_update_ui()
-
-	# Auto-advance after 1.2 seconds
 	get_tree().create_timer(1.2).timeout.connect(_next_question)
 
 func _next_question():
@@ -313,8 +379,16 @@ func _end_game():
 
 	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
 	if achievement_mgr:
-		achievement_mgr.check_spelling_score(_correct_count, difficulty == 2)
+		achievement_mgr.check_spelling_score(_correct_count, _level >= 9)
 		achievement_mgr.check_all()
+
+	# Check for level advance
+	var leveled_up = false
+	if _correct_count >= ADVANCE_THRESHOLD:
+		var new_level = game_manager.advance_game_level("spelling")
+		if new_level > _level:
+			leveled_up = true
+			_level = new_level
 
 	_prompt_label.visible = false
 	for label in _choices_labels:
@@ -322,9 +396,17 @@ func _end_game():
 	_feedback_label.text = ""
 
 	var xp_bonus = _correct_count * 5
-	_result_label.text = "TIME'S UP!\n\nCorrect: %d\nWrong: %d\nCoins earned: %d\nXP bonus: +%d\n\nPress ESC to return to Hub" % [
-		_correct_count, _wrong_count, max(0, _coins_earned), xp_bonus
+	var result_text = "TIME'S UP!\n\nLevel: %d — %s\nCorrect: %d\nWrong: %d\nCoins earned: %d\nXP bonus: +%d" % [
+		_level, LEVEL_NAMES[_level], _correct_count, _wrong_count, max(0, _coins_earned), xp_bonus
 	]
+
+	if leveled_up:
+		result_text += "\n\nLEVEL UP! Now Level %d: %s" % [_level, LEVEL_NAMES[_level]]
+	elif _correct_count < ADVANCE_THRESHOLD:
+		result_text += "\n\nNeed %d correct to advance (got %d)" % [ADVANCE_THRESHOLD, _correct_count]
+
+	result_text += "\n\nPress ESC to return to Hub"
+	_result_label.text = result_text
 	_result_label.visible = true
 
 func _process(delta: float):
@@ -355,23 +437,6 @@ func _input(event):
 			var save_manager = get_tree().root.get_node_or_null("SaveManager")
 			if save_manager:
 				save_manager.save_game()
-			return
-
-		if selecting_difficulty:
-			if event.keycode == KEY_UP:
-				difficulty = max(0, difficulty - 1)
-				_update_difficulty_display()
-				if audio_manager:
-					audio_manager.play_sfx("menu_navigate")
-			elif event.keycode == KEY_DOWN:
-				difficulty = min(2, difficulty + 1)
-				_update_difficulty_display()
-				if audio_manager:
-					audio_manager.play_sfx("menu_navigate")
-			elif event.keycode == KEY_SPACE:
-				if audio_manager:
-					audio_manager.play_sfx("menu_select")
-				_start_game()
 			return
 
 		if not _game_active or _waiting_next:

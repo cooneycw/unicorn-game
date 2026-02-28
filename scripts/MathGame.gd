@@ -1,29 +1,31 @@
 extends Node2D
 
-# Math Game — Times Tables practice
-# UP/DOWN to select answer, SPACE to confirm, difficulty levels, coin rewards
+# Math Game — 10 auto-advancing levels
+# L1-3: Addition (1-5, 1-10, 1-20)
+# L4: Subtraction (1-10)
+# L5-7: Multiplication (1-5, 1-10, 1-12)
+# L8: Division (whole numbers)
+# L9: Mixed add/subtract (1-20)
+# L10: Mixed all operations (1-12)
+# Advance: 8+ correct in 60 seconds
 
 var game_manager
 var audio_manager
 
 # Game state
 const GAME_DURATION: float = 60.0
+const ADVANCE_THRESHOLD: int = 8
 var _time_remaining: float = GAME_DURATION
 var _game_active: bool = false
-var _score: int = 0
-var _coins_earned: int = 0
 var _correct_count: int = 0
 var _wrong_count: int = 0
+var _coins_earned: int = 0
 var _active_pet_id: int = -1
 var _streak: int = 0
-
-# Difficulty
-var difficulty: int = 1  # 0=easy(1-5), 1=medium(1-10), 2=hard(1-12)
-var selecting_difficulty: bool = true
+var _level: int = 1
 
 # Current problem
-var _factor_a: int = 0
-var _factor_b: int = 0
+var _question_text: String = ""
 var _correct_answer: int = 0
 var _choices: Array = []
 var _selected_choice: int = 0
@@ -31,20 +33,37 @@ var _selected_choice: int = 0
 # UI elements
 var _time_label: Label
 var _score_label: Label
+var _level_label: Label
 var _problem_label: Label
 var _choices_labels: Array = []
 var _feedback_label: Label
 var _result_label: Label
-var _difficulty_label: Label
 var _info_label: Label
 var _streak_label: Label
 
 var _screen_width: float = 1152.0
 var _screen_height: float = 648.0
 
+# Level descriptions shown to player
+const LEVEL_NAMES: Array = [
+	"", # unused index 0
+	"Addition (1-5)",
+	"Addition (1-10)",
+	"Addition (1-20)",
+	"Subtraction (1-10)",
+	"Multiplication (1-5)",
+	"Multiplication (1-10)",
+	"Multiplication (1-12)",
+	"Division",
+	"Mixed Add/Subtract",
+	"Mixed All Operations",
+]
+
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
+
+	_level = game_manager.get_game_level("math")
 
 	var all_pets = game_manager.get_all_pets()
 	if all_pets.size() > 0:
@@ -56,7 +75,7 @@ func _ready():
 		_screen_height = viewport_size.y
 
 	_build_ui()
-	_show_difficulty_select()
+	_start_game()
 
 func _build_ui():
 	# Background
@@ -72,6 +91,13 @@ func _build_ui():
 	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", Color(0.3, 0.9, 0.3))
 	add_child(title)
+
+	# Level display
+	_level_label = Label.new()
+	_level_label.position = Vector2(_screen_width / 2.0 - 100, 45)
+	_level_label.add_theme_font_size_override("font_size", 16)
+	_level_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	add_child(_level_label)
 
 	# Time display
 	_time_label = Label.new()
@@ -95,24 +121,22 @@ func _build_ui():
 
 	# Problem display (large, centered)
 	_problem_label = Label.new()
-	_problem_label.position = Vector2(_screen_width / 2.0 - 120, 120)
+	_problem_label.position = Vector2(_screen_width / 2.0 - 120, 100)
 	_problem_label.add_theme_font_size_override("font_size", 48)
 	_problem_label.add_theme_color_override("font_color", Color.WHITE)
-	_problem_label.visible = false
 	add_child(_problem_label)
 
 	# Answer choices (4 options)
 	for i in range(4):
 		var choice = Label.new()
-		choice.position = Vector2(_screen_width / 2.0 - 80, 220 + i * 55)
+		choice.position = Vector2(_screen_width / 2.0 - 80, 200 + i * 55)
 		choice.add_theme_font_size_override("font_size", 28)
-		choice.visible = false
 		add_child(choice)
 		_choices_labels.append(choice)
 
 	# Feedback
 	_feedback_label = Label.new()
-	_feedback_label.position = Vector2(_screen_width / 2.0 - 100, 460)
+	_feedback_label.position = Vector2(_screen_width / 2.0 - 100, 440)
 	_feedback_label.add_theme_font_size_override("font_size", 20)
 	add_child(_feedback_label)
 
@@ -121,66 +145,96 @@ func _build_ui():
 	_info_label.position = Vector2(15, _screen_height - 30)
 	_info_label.add_theme_font_size_override("font_size", 12)
 	_info_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	_info_label.text = "UP/DOWN: select answer | SPACE: confirm | ESC: back"
 	add_child(_info_label)
-
-	# Difficulty selector
-	_difficulty_label = Label.new()
-	_difficulty_label.position = Vector2(300, 200)
-	_difficulty_label.add_theme_font_size_override("font_size", 18)
-	add_child(_difficulty_label)
 
 	# Result (hidden)
 	_result_label = Label.new()
-	_result_label.position = Vector2(_screen_width / 2.0 - 150, _screen_height / 2.0 - 80)
+	_result_label.position = Vector2(_screen_width / 2.0 - 180, _screen_height / 2.0 - 100)
 	_result_label.add_theme_font_size_override("font_size", 22)
 	_result_label.visible = false
 	add_child(_result_label)
 
-func _show_difficulty_select():
-	selecting_difficulty = true
-	_update_difficulty_display()
-	_info_label.text = "UP/DOWN: choose difficulty | SPACE: start | ESC: back to hub"
-
-func _update_difficulty_display():
-	var lines = ""
-	var options = ["Easy (1-5 tables)", "Medium (1-10 tables)", "Hard (1-12 tables)"]
-	for i in range(options.size()):
-		var prefix = "> " if i == difficulty else "  "
-		lines += prefix + options[i] + "\n"
-	_difficulty_label.text = "Choose Difficulty:\n\n" + lines
-
 func _start_game():
-	selecting_difficulty = false
-	_difficulty_label.text = ""
 	_game_active = true
 	_time_remaining = GAME_DURATION
-	_score = 0
-	_coins_earned = 0
 	_correct_count = 0
 	_wrong_count = 0
+	_coins_earned = 0
 	_streak = 0
 
+	_level_label.text = "Level %d: %s" % [_level, LEVEL_NAMES[_level]]
 	_problem_label.visible = true
 	for label in _choices_labels:
 		label.visible = true
 	_result_label.visible = false
 
-	_info_label.text = "UP/DOWN: select answer | SPACE: confirm | ESC: back"
 	_generate_problem()
 	_update_ui()
 
 func _generate_problem():
-	var max_factor = 5
-	match difficulty:
-		0: max_factor = 5
-		1: max_factor = 10
-		2: max_factor = 12
+	match _level:
+		1: _gen_addition(1, 5)
+		2: _gen_addition(1, 10)
+		3: _gen_addition(1, 20)
+		4: _gen_subtraction(1, 10)
+		5: _gen_multiplication(1, 5)
+		6: _gen_multiplication(1, 10)
+		7: _gen_multiplication(1, 12)
+		8: _gen_division()
+		9: _gen_mixed_add_sub(1, 20)
+		10: _gen_mixed_all()
 
-	_factor_a = randi_range(1, max_factor)
-	_factor_b = randi_range(1, max_factor)
-	_correct_answer = _factor_a * _factor_b
+	_make_choices()
+	_selected_choice = 0
+	_problem_label.text = _question_text
+	_draw_choices()
 
-	# Generate 3 wrong answers (distinct, positive, plausible)
+func _gen_addition(min_val: int, max_val: int):
+	var a = randi_range(min_val, max_val)
+	var b = randi_range(min_val, max_val)
+	_question_text = "%d + %d = ?" % [a, b]
+	_correct_answer = a + b
+
+func _gen_subtraction(min_val: int, max_val: int):
+	var a = randi_range(min_val, max_val)
+	var b = randi_range(min_val, max_val)
+	if b > a:
+		var tmp = a
+		a = b
+		b = tmp
+	_question_text = "%d - %d = ?" % [a, b]
+	_correct_answer = a - b
+
+func _gen_multiplication(min_val: int, max_val: int):
+	var a = randi_range(min_val, max_val)
+	var b = randi_range(min_val, max_val)
+	_question_text = "%d x %d = ?" % [a, b]
+	_correct_answer = a * b
+
+func _gen_division():
+	# Generate division with whole number result
+	var divisor = randi_range(1, 10)
+	var result = randi_range(1, 10)
+	var dividend = divisor * result
+	_question_text = "%d / %d = ?" % [dividend, divisor]
+	_correct_answer = result
+
+func _gen_mixed_add_sub(min_val: int, max_val: int):
+	if randi() % 2 == 0:
+		_gen_addition(min_val, max_val)
+	else:
+		_gen_subtraction(min_val, max_val)
+
+func _gen_mixed_all():
+	var op = randi() % 4
+	match op:
+		0: _gen_addition(1, 20)
+		1: _gen_subtraction(1, 20)
+		2: _gen_multiplication(1, 12)
+		3: _gen_division()
+
+func _make_choices():
 	var wrong_answers: Array = []
 	var attempts = 0
 	while wrong_answers.size() < 3 and attempts < 50:
@@ -189,10 +243,10 @@ func _generate_problem():
 		var strategy = randi() % 4
 		match strategy:
 			0: wrong = _correct_answer + randi_range(-5, 5)
-			1: wrong = _factor_a + _factor_b  # common mistake: addition
-			2: wrong = randi_range(1, max_factor) * randi_range(1, max_factor)
-			3: wrong = _correct_answer + randi_range(1, 3) * (1 if randi() % 2 == 0 else -1)
-		if wrong > 0 and wrong != _correct_answer and wrong not in wrong_answers:
+			1: wrong = _correct_answer + randi_range(1, 3)
+			2: wrong = _correct_answer - randi_range(1, 3)
+			3: wrong = abs(_correct_answer + randi_range(-10, 10))
+		if wrong >= 0 and wrong != _correct_answer and wrong not in wrong_answers:
 			wrong_answers.append(wrong)
 
 	while wrong_answers.size() < 3:
@@ -200,10 +254,6 @@ func _generate_problem():
 
 	_choices = [_correct_answer] + wrong_answers
 	_choices.shuffle()
-	_selected_choice = 0
-
-	_problem_label.text = "%d x %d = ?" % [_factor_a, _factor_b]
-	_draw_choices()
 
 func _draw_choices():
 	for i in range(4):
@@ -220,7 +270,7 @@ func _submit_answer():
 		_streak += 1
 		var bonus = 2
 		if _streak >= 5:
-			bonus = 4  # streak bonus
+			bonus = 4
 		elif _streak >= 3:
 			bonus = 3
 		_coins_earned += bonus
@@ -234,10 +284,9 @@ func _submit_answer():
 		_streak = 0
 		if audio_manager:
 			audio_manager.play_sfx("wrong")
-		_feedback_label.text = "Wrong! %d x %d = %d" % [_factor_a, _factor_b, _correct_answer]
+		_feedback_label.text = "Wrong! Answer: %d" % _correct_answer
 		_feedback_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 
-	# Next problem
 	_generate_problem()
 
 func _update_ui():
@@ -257,6 +306,14 @@ func _end_game():
 		achievement_mgr.check_math_score(_correct_count)
 		achievement_mgr.check_all()
 
+	# Check for level advance
+	var leveled_up = false
+	if _correct_count >= ADVANCE_THRESHOLD:
+		var new_level = game_manager.advance_game_level("math")
+		if new_level > _level:
+			leveled_up = true
+			_level = new_level
+
 	# Hide game elements
 	_problem_label.visible = false
 	for label in _choices_labels:
@@ -264,9 +321,17 @@ func _end_game():
 	_feedback_label.text = ""
 
 	var xp_bonus = _correct_count * 5
-	_result_label.text = "TIME'S UP!\n\nCorrect: %d\nWrong: %d\nCoins earned: %d\nXP bonus: +%d\n\nPress ESC to return to Hub" % [
-		_correct_count, _wrong_count, max(0, _coins_earned), xp_bonus
+	var result_text = "TIME'S UP!\n\nLevel: %d — %s\nCorrect: %d\nWrong: %d\nCoins earned: %d\nXP bonus: +%d" % [
+		_level, LEVEL_NAMES[_level], _correct_count, _wrong_count, max(0, _coins_earned), xp_bonus
 	]
+
+	if leveled_up:
+		result_text += "\n\nLEVEL UP! Now Level %d: %s" % [_level, LEVEL_NAMES[_level]]
+	elif _correct_count < ADVANCE_THRESHOLD:
+		result_text += "\n\nNeed %d correct to advance (got %d)" % [ADVANCE_THRESHOLD, _correct_count]
+
+	result_text += "\n\nPress ESC to return to Hub"
+	_result_label.text = result_text
 	_result_label.visible = true
 
 func _process(delta: float):
@@ -297,23 +362,6 @@ func _input(event):
 			var save_manager = get_tree().root.get_node_or_null("SaveManager")
 			if save_manager:
 				save_manager.save_game()
-			return
-
-		if selecting_difficulty:
-			if event.keycode == KEY_UP:
-				difficulty = max(0, difficulty - 1)
-				_update_difficulty_display()
-				if audio_manager:
-					audio_manager.play_sfx("menu_navigate")
-			elif event.keycode == KEY_DOWN:
-				difficulty = min(2, difficulty + 1)
-				_update_difficulty_display()
-				if audio_manager:
-					audio_manager.play_sfx("menu_navigate")
-			elif event.keycode == KEY_SPACE:
-				if audio_manager:
-					audio_manager.play_sfx("menu_select")
-				_start_game()
 			return
 
 		if not _game_active:
