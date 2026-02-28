@@ -1,25 +1,28 @@
 extends Node3D
 
-# Main game scene (Hub) - Keyboard only controls
+# Main game scene (Hub) — mood summaries, coins, container layout
 var game_manager
 var selected_menu_item = 0  # 0 = Island, 1 = Vet
 
+var _pets_container: VBoxContainer
+var _coins_label: Label
+var _menu_label: Label
+
 func _ready():
-	# Get the game manager singleton
 	game_manager = get_tree().root.get_node("GameManager")
 
-	# Create the island environment
 	_create_island()
-
-	# Create UI
 	_create_ui()
 
-	# Spawn some starting pets
 	if game_manager.get_all_pets().size() == 0:
 		_spawn_starting_pets()
+	else:
+		_refresh_pet_list()
+
+	game_manager.pet_stat_changed.connect(_on_stat_changed)
+	game_manager.coins_changed.connect(_on_coins_changed)
 
 func _create_island():
-	# Create ground plane
 	var ground = MeshInstance3D.new()
 	var plane_mesh = PlaneMesh.new()
 	plane_mesh.size = Vector2(20, 20)
@@ -29,68 +32,125 @@ func _create_island():
 	var ground_material = StandardMaterial3D.new()
 	ground_material.albedo_color = Color.GREEN
 	ground.material_override = ground_material
-
 	add_child(ground)
 
-	# Create a simple light
 	var light = DirectionalLight3D.new()
 	light.rotation.x = -PI / 4
 	light.rotation.y = -PI / 4
 	add_child(light)
 
-	# Create camera
 	var camera = Camera3D.new()
 	camera.position = Vector3(0, 5, 10)
 	camera.look_at(Vector3(0, 0, 0), Vector3.UP)
 	add_child(camera)
 
 func _create_ui():
-	# Create UI
 	var ui = Control.new()
 	ui.anchor_right = 1.0
 	ui.anchor_bottom = 1.0
 	ui.name = "UI"
 	add_child(ui)
 
-	# Title
+	# Main vertical layout
+	var vbox = VBoxContainer.new()
+	vbox.position = Vector2(10, 10)
+	vbox.size = Vector2(400, 600)
+	ui.add_child(vbox)
+
+	# Title row
+	var title_row = HBoxContainer.new()
+	vbox.add_child(title_row)
+
 	var title = Label.new()
 	title.text = "HUB - Unicorn Game"
-	title.position = Vector2(10, 10)
 	title.add_theme_font_size_override("font_size", 24)
-	ui.add_child(title)
+	title_row.add_child(title)
+
+	# Spacer
+	var spacer = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.add_child(spacer)
+
+	# Coins display
+	_coins_label = Label.new()
+	_coins_label.text = "Coins: %d" % game_manager.coins
+	_coins_label.add_theme_font_size_override("font_size", 18)
+	_coins_label.add_theme_color_override("font_color", Color.YELLOW)
+	title_row.add_child(_coins_label)
+
+	# Separator
+	vbox.add_child(HSeparator.new())
 
 	# Menu options
-	var menu_label = Label.new()
-	menu_label.text = "> Visit Island (Q or UP+SPACE)\n  Visit Vet (V or DOWN+SPACE)"
-	menu_label.position = Vector2(10, 50)
-	menu_label.name = "MenuLabel"
-	ui.add_child(menu_label)
+	_menu_label = Label.new()
+	_menu_label.name = "MenuLabel"
+	_update_menu_display()
+	vbox.add_child(_menu_label)
 
-	# Instructions
-	var instructions = Label.new()
-	instructions.text = "Use ARROW KEYS to navigate, SPACE to select"
-	instructions.position = Vector2(10, 150)
-	instructions.add_theme_font_size_override("font_size", 12)
-	ui.add_child(instructions)
+	# Separator
+	vbox.add_child(HSeparator.new())
 
-	# Pet list
-	var pets_label = Label.new()
-	pets_label.text = "\n\nYour Pets:"
-	pets_label.position = Vector2(10, 200)
-	ui.add_child(pets_label)
+	# Pet summaries header
+	var pets_header = Label.new()
+	pets_header.text = "Your Pets:"
+	pets_header.add_theme_font_size_override("font_size", 16)
+	vbox.add_child(pets_header)
 
-	var y_offset = 230
+	# Pet list container
+	_pets_container = VBoxContainer.new()
+	_pets_container.name = "PetsContainer"
+	vbox.add_child(_pets_container)
+
+	# Separator before tips
+	vbox.add_child(HSeparator.new())
+
+	# Gameplay tips
+	var tips = Label.new()
+	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nEarn coins by playing! Healing at the Vet costs 10 coins."
+	tips.add_theme_font_size_override("font_size", 12)
+	tips.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	vbox.add_child(tips)
+
+func _refresh_pet_list():
+	# Clear existing entries
+	for child in _pets_container.get_children():
+		child.queue_free()
+
 	var all_pets = game_manager.get_all_pets()
 	for pet_id in all_pets.keys():
-		var pet_info = all_pets[pet_id]
-		var pet_text = Label.new()
-		pet_text.text = "• %s (%s) - Health: %d/100" % [pet_info["name"], pet_info["type"], pet_info["health"]]
-		pet_text.position = Vector2(20, y_offset)
-		ui.add_child(pet_text)
-		y_offset += 25
+		var info = all_pets[pet_id]
+		var mood = game_manager.get_pet_mood(pet_id)
+		var emoji = game_manager.get_mood_emoji(pet_id)
+
+		# Find lowest stat for warning
+		var stats = {
+			"Health": info["health"],
+			"Happiness": info["happiness"],
+			"Hunger": info["hunger"],
+			"Energy": info["energy"]
+		}
+		var lowest_name = ""
+		var lowest_val = 101
+		for sname in stats.keys():
+			if stats[sname] < lowest_val:
+				lowest_val = stats[sname]
+				lowest_name = sname
+
+		var warning = ""
+		if lowest_val < 30:
+			warning = "  [!%s: %d]" % [lowest_name, lowest_val]
+
+		var row = Label.new()
+		row.text = "%s %s (%s) — %s%s" % [emoji, info["name"], info["type"], mood, warning]
+
+		if lowest_val < 20:
+			row.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+		elif lowest_val < 30:
+			row.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
+
+		_pets_container.add_child(row)
 
 func _spawn_starting_pets():
-	# Create a few starting pets
 	var pet_names = ["Sparkle", "Rainbow", "Cloud", "Moonlight"]
 	var pet_types = ["unicorn", "pegasus", "unicorn", "dragon"]
 
@@ -98,17 +158,22 @@ func _spawn_starting_pets():
 		var pet_id = game_manager.add_pet(pet_names[i], pet_types[i])
 		_spawn_pet_in_world(pet_id)
 
+	_refresh_pet_list()
+
 func _spawn_pet_in_world(pet_id: int):
 	var pet_info = game_manager.get_pet_info(pet_id)
 	var pet = Pet.new()
 	pet.pet_id = pet_id
 	pet.pet_name = pet_info["name"]
 	pet.pet_type = pet_info["type"]
-
-	# Random position on the island
 	pet.position = Vector3(randf_range(-5, 5), 0.5, randf_range(-5, 5))
-
 	add_child(pet)
+
+func _on_stat_changed(_pet_id: int, _stat_name: String, _new_value: int):
+	_refresh_pet_list()
+
+func _on_coins_changed(new_amount: int):
+	_coins_label.text = "Coins: %d" % new_amount
 
 func _go_to_island():
 	get_tree().change_scene_to_file("res://scenes/Island.tscn")
@@ -117,15 +182,15 @@ func _go_to_vet():
 	get_tree().change_scene_to_file("res://scenes/VetClinic.tscn")
 
 func _update_menu_display():
-	var menu_label = get_node("UI/MenuLabel")
+	if _menu_label == null:
+		return
 	if selected_menu_item == 0:
-		menu_label.text = "> Visit Island (Q or UP+SPACE)\n  Visit Vet (V or DOWN+SPACE)"
+		_menu_label.text = "> Visit Island (Q)\n  Visit Vet (V)"
 	else:
-		menu_label.text = "  Visit Island (Q or UP+SPACE)\n> Visit Vet (V or DOWN+SPACE)"
+		_menu_label.text = "  Visit Island (Q)\n> Visit Vet (V)"
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
-		# Quick keys
 		if event.keycode == KEY_Q:
 			_go_to_island()
 			return
@@ -133,7 +198,6 @@ func _input(event):
 			_go_to_vet()
 			return
 
-		# Arrow key navigation
 		if event.keycode == KEY_UP:
 			selected_menu_item = 0
 			_update_menu_display()
@@ -143,7 +207,6 @@ func _input(event):
 			_update_menu_display()
 			return
 
-		# Space to select
 		if event.keycode == KEY_SPACE:
 			if selected_menu_item == 0:
 				_go_to_island()
