@@ -2,11 +2,12 @@ extends Node3D
 
 # Main game scene (Hub) — mood summaries, coins, container layout
 var game_manager
-var selected_menu_item = 0  # 0 = Island, 1 = Vet
+var selected_menu_item = 0  # 0 = Island, 1 = Vet, 2 = Mini-Game
 
 var _pets_container: VBoxContainer
 var _coins_label: Label
 var _menu_label: Label
+var _welcome_label: Label
 
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
@@ -21,6 +22,12 @@ func _ready():
 
 	game_manager.pet_stat_changed.connect(_on_stat_changed)
 	game_manager.coins_changed.connect(_on_coins_changed)
+
+	# Show welcome back message if returning from save
+	var welcome_msg = game_manager.get_welcome_message()
+	if welcome_msg != "":
+		_welcome_label.text = welcome_msg
+		_welcome_label.visible = true
 
 func _create_island():
 	var ground = MeshInstance3D.new()
@@ -78,6 +85,14 @@ func _create_ui():
 	_coins_label.add_theme_color_override("font_color", Color.YELLOW)
 	title_row.add_child(_coins_label)
 
+	# Welcome back message
+	_welcome_label = Label.new()
+	_welcome_label.name = "WelcomeLabel"
+	_welcome_label.add_theme_font_size_override("font_size", 14)
+	_welcome_label.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
+	_welcome_label.visible = false
+	vbox.add_child(_welcome_label)
+
 	# Separator
 	vbox.add_child(HSeparator.new())
 
@@ -106,7 +121,7 @@ func _create_ui():
 
 	# Gameplay tips
 	var tips = Label.new()
-	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nEarn coins by playing! Healing at the Vet costs 10 coins."
+	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nEarn coins by playing! Healing at the Vet costs 10 coins.\nTry the Mini-Game to earn extra coins!"
 	tips.add_theme_font_size_override("font_size", 12)
 	tips.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(tips)
@@ -176,40 +191,63 @@ func _on_coins_changed(new_amount: int):
 	_coins_label.text = "Coins: %d" % new_amount
 
 func _go_to_island():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/Island.tscn")
 
 func _go_to_vet():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/VetClinic.tscn")
+
+func _go_to_minigame():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
+	get_tree().change_scene_to_file("res://scenes/MiniGame.tscn")
 
 func _update_menu_display():
 	if _menu_label == null:
 		return
-	if selected_menu_item == 0:
-		_menu_label.text = "> Visit Island (Q)\n  Visit Vet (V)"
-	else:
-		_menu_label.text = "  Visit Island (Q)\n> Visit Vet (V)"
+	var lines = ""
+	var items = ["Visit Island (Q)", "Visit Vet (V)", "Play Mini-Game (M)"]
+	for i in range(items.size()):
+		var prefix = "> " if i == selected_menu_item else "  "
+		lines += prefix + items[i] + "\n"
+	_menu_label.text = lines.strip_edges()
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
+		# Dismiss welcome message on any key
+		if _welcome_label.visible:
+			_welcome_label.visible = false
+
 		if event.keycode == KEY_Q:
 			_go_to_island()
 			return
 		if event.keycode == KEY_V:
 			_go_to_vet()
 			return
+		if event.keycode == KEY_M:
+			_go_to_minigame()
+			return
 
 		if event.keycode == KEY_UP:
-			selected_menu_item = 0
+			selected_menu_item = max(0, selected_menu_item - 1)
 			_update_menu_display()
 			return
 		if event.keycode == KEY_DOWN:
-			selected_menu_item = 1
+			selected_menu_item = min(2, selected_menu_item + 1)
 			_update_menu_display()
 			return
 
 		if event.keycode == KEY_SPACE:
 			if selected_menu_item == 0:
 				_go_to_island()
-			else:
+			elif selected_menu_item == 1:
 				_go_to_vet()
+			else:
+				_go_to_minigame()
 			return

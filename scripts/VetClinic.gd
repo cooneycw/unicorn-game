@@ -152,6 +152,9 @@ func _heal_pet():
 		pet_text.text = "> %s (%s) - Health: %d/100" % [pet_info["name"], pet_info["type"], pet_info["health"]]
 
 func _go_back():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
 func _input(event):
