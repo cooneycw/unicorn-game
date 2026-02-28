@@ -34,38 +34,45 @@ jobs:
           ./godot --headless --export-release "Windows Desktop" build/windows/UnicornGame.exe
           test -f build/windows/UnicornGame.exe
 
-      - name: Install msitools
-        run: sudo apt-get update && sudo apt-get install -y msitools
+      - name: Install WiX Toolset
+        run: |
+          dotnet tool install --global wix
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
       - name: Create WiX Product File
         run: |
           cat > build/windows/Product.wxs << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-            <Product Id="*" Name="Unicorn Game" Language="1033" Version="1.0.0.0" Manufacturer="Unicorn Game" UpgradeCode="12345678-1234-1234-1234-123456789012">
-              <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+          <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+            <Package Name="Unicorn Game" Version="1.0.0.0" Manufacturer="Unicorn Game"
+                     UpgradeCode="12345678-1234-1234-1234-123456789012"
+                     ProductCode="*">
               <MajorUpgrade DowngradeErrorMessage="A newer version of Unicorn Game is already installed." />
               <MediaTemplate EmbedCab="yes" />
-              <Feature Id="ProductFeature" Title="Unicorn Game" Level="1">
-                <ComponentRef Id="MainExecutable" />
+              <Feature Id="ProductFeature">
+                <ComponentGroupRef Id="ProductComponents" />
               </Feature>
+            </Package>
+            <Fragment>
               <Directory Id="TARGETDIR" Name="SourceDir">
                 <Directory Id="ProgramFilesFolder">
-                  <Directory Id="INSTALLFOLDER" Name="Unicorn Game">
-                    <Component Id="MainExecutable" Guid="12345678-1234-1234-1234-000000000001">
-                      <File Id="GameExecutable" Source="UnicornGame.exe" KeyPath="yes" />
-                    </Component>
-                  </Directory>
+                  <Directory Id="INSTALLFOLDER" Name="Unicorn Game" />
                 </Directory>
               </Directory>
-            </Product>
+            </Fragment>
+            <Fragment>
+              <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+                <Component>
+                  <File Source="UnicornGame.exe" />
+                </Component>
+              </ComponentGroup>
+            </Fragment>
           </Wix>
           EOF
 
       - name: Build MSI Installer
         run: |
           cd build/windows
-          wixl -o UnicornGame.msi Product.wxs
+          wix build -o UnicornGame.msi Product.wxs
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
