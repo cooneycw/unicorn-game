@@ -58,20 +58,20 @@ func _create_ui():
 	# Title
 	var title = Label.new()
 	title.text = "VETERINARY CLINIC"
-	title.rect_position = Vector2(10, 10)
+	title.position = Vector2(10, 10)
 	title.add_theme_font_size_override("font_size", 24)
 	ui.add_child(title)
 
 	# Instructions
 	var instructions = Label.new()
 	instructions.text = "UP/DOWN to select pet, H to heal, ESC to go back"
-	instructions.rect_position = Vector2(10, 60)
+	instructions.position = Vector2(10, 60)
 	ui.add_child(instructions)
 
 	# Pet selection area
 	var pet_label = Label.new()
 	pet_label.text = "\nSelect a pet to heal:"
-	pet_label.rect_position = Vector2(10, 110)
+	pet_label.position = Vector2(10, 110)
 	ui.add_child(pet_label)
 
 	var all_pets = game_manager.get_all_pets()
@@ -82,7 +82,7 @@ func _create_ui():
 
 		var pet_text = Label.new()
 		pet_text.text = "  %s (%s) - Health: %d/100" % [pet_info["name"], pet_info["type"], pet_info["health"]]
-		pet_text.rect_position = Vector2(10, y_offset)
+		pet_text.position = Vector2(10, y_offset)
 		pet_text.name = "Pet_%d" % pet_id
 		ui.add_child(pet_text)
 
@@ -91,7 +91,7 @@ func _create_ui():
 	# Status label
 	var status_label = Label.new()
 	status_label.text = ""
-	status_label.rect_position = Vector2(10, y_offset + 30)
+	status_label.position = Vector2(10, y_offset + 30)
 	status_label.name = "StatusLabel"
 	ui.add_child(status_label)
 
@@ -138,28 +138,28 @@ func _heal_pet():
 		print("Healed pet: ", pet_info["name"])
 
 func _go_back():
-	get_tree().change_scene("res://scenes/Main.tscn")
+	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
 		# Go back with ESC
-		if event.scancode == KEY_ESCAPE or event.scancode == KEY_B:
+		if event.keycode == KEY_ESCAPE or event.keycode == KEY_B:
 			_go_back()
 			return
 
 		# Heal with H
-		if event.scancode == KEY_H:
+		if event.keycode == KEY_H:
 			_heal_pet()
 			return
 
 		# Navigate pets with arrow keys
-		if event.scancode == KEY_UP:
+		if event.keycode == KEY_UP:
 			selected_pet_index = max(0, selected_pet_index - 1)
 			if selected_pet_index < pet_list.size():
 				_select_pet(pet_list[selected_pet_index])
 			return
 
-		if event.scancode == KEY_DOWN:
+		if event.keycode == KEY_DOWN:
 			selected_pet_index = min(pet_list.size() - 1, selected_pet_index + 1)
 			if selected_pet_index < pet_list.size():
 				_select_pet(pet_list[selected_pet_index])

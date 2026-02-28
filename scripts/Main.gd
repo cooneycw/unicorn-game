@@ -55,28 +55,28 @@ func _create_ui():
 	# Title
 	var title = Label.new()
 	title.text = "HUB - Unicorn Game"
-	title.rect_position = Vector2(10, 10)
+	title.position = Vector2(10, 10)
 	title.add_theme_font_size_override("font_size", 24)
 	ui.add_child(title)
 
 	# Menu options
 	var menu_label = Label.new()
 	menu_label.text = "> Visit Island (Q or UP+SPACE)\n  Visit Vet (V or DOWN+SPACE)"
-	menu_label.rect_position = Vector2(10, 50)
+	menu_label.position = Vector2(10, 50)
 	menu_label.name = "MenuLabel"
 	ui.add_child(menu_label)
 
 	# Instructions
 	var instructions = Label.new()
 	instructions.text = "Use ARROW KEYS to navigate, SPACE to select"
-	instructions.rect_position = Vector2(10, 150)
+	instructions.position = Vector2(10, 150)
 	instructions.add_theme_font_size_override("font_size", 12)
 	ui.add_child(instructions)
 
 	# Pet list
 	var pets_label = Label.new()
 	pets_label.text = "\n\nYour Pets:"
-	pets_label.rect_position = Vector2(10, 200)
+	pets_label.position = Vector2(10, 200)
 	ui.add_child(pets_label)
 
 	var y_offset = 230
@@ -85,7 +85,7 @@ func _create_ui():
 		var pet_info = all_pets[pet_id]
 		var pet_text = Label.new()
 		pet_text.text = "• %s (%s) - Health: %d/100" % [pet_info["name"], pet_info["type"], pet_info["health"]]
-		pet_text.rect_position = Vector2(20, y_offset)
+		pet_text.position = Vector2(20, y_offset)
 		ui.add_child(pet_text)
 		y_offset += 25
 
@@ -111,40 +111,40 @@ func _spawn_pet_in_world(pet_id: int):
 	add_child(pet)
 
 func _go_to_island():
-	get_tree().change_scene("res://scenes/Island.tscn")
+	get_tree().change_scene_to_file("res://scenes/Island.tscn")
 
 func _go_to_vet():
-	get_tree().change_scene("res://scenes/VetClinic.tscn")
+	get_tree().change_scene_to_file("res://scenes/VetClinic.tscn")
 
 func _update_menu_display():
 	var menu_label = get_node("UI/MenuLabel")
 	if selected_menu_item == 0:
-		menu_label.text = "> Visit Island (Q or UP+ENTER)\n  Visit Vet (V or DOWN+ENTER)"
+		menu_label.text = "> Visit Island (Q or UP+SPACE)\n  Visit Vet (V or DOWN+SPACE)"
 	else:
-		menu_label.text = "  Visit Island (Q or UP+ENTER)\n> Visit Vet (V or DOWN+ENTER)"
+		menu_label.text = "  Visit Island (Q or UP+SPACE)\n> Visit Vet (V or DOWN+SPACE)"
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
 		# Quick keys
-		if event.scancode == KEY_Q:
+		if event.keycode == KEY_Q:
 			_go_to_island()
 			return
-		if event.scancode == KEY_V:
+		if event.keycode == KEY_V:
 			_go_to_vet()
 			return
 
 		# Arrow key navigation
-		if event.scancode == KEY_UP:
+		if event.keycode == KEY_UP:
 			selected_menu_item = 0
 			_update_menu_display()
 			return
-		if event.scancode == KEY_DOWN:
+		if event.keycode == KEY_DOWN:
 			selected_menu_item = 1
 			_update_menu_display()
 			return
 
 		# Space to select
-		if event.scancode == KEY_SPACE:
+		if event.keycode == KEY_SPACE:
 			if selected_menu_item == 0:
 				_go_to_island()
 			else:

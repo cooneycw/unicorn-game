@@ -69,20 +69,20 @@ func _create_ui():
 	# Title
 	var title = Label.new()
 	title.text = "ISLAND"
-	title.rect_position = Vector2(10, 10)
+	title.position = Vector2(10, 10)
 	title.add_theme_font_size_override("font_size", 24)
 	ui.add_child(title)
 
 	# Instructions
 	var instructions = Label.new()
 	instructions.text = "Press ESC or B to go back to Hub"
-	instructions.rect_position = Vector2(10, 60)
+	instructions.position = Vector2(10, 60)
 	ui.add_child(instructions)
 
 	# Pet list
 	var pets_label = Label.new()
 	pets_label.text = "\nPets on this island:"
-	pets_label.rect_position = Vector2(10, 110)
+	pets_label.position = Vector2(10, 110)
 	ui.add_child(pets_label)
 
 	var y_offset = 140
@@ -96,16 +96,16 @@ func _create_ui():
 			pet_info["health"],
 			pet_info["happiness"]
 		]
-		pet_text.rect_position = Vector2(20, y_offset)
+		pet_text.position = Vector2(20, y_offset)
 		ui.add_child(pet_text)
 		y_offset += 25
 
 func _go_back():
-	get_tree().change_scene("res://scenes/Main.tscn")
+	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
 		# Go back with ESC or B
-		if event.scancode == KEY_ESCAPE or event.scancode == KEY_B:
+		if event.keycode == KEY_ESCAPE or event.keycode == KEY_B:
 			_go_back()
 			return
