@@ -1,9 +1,8 @@
 extends Node3D
 
-# Main game scene (Hub)
+# Main game scene (Hub) - Keyboard only controls
 var game_manager
-var pet_spawn_location = Vector3.ZERO
-var selected_pet_id = null
+var selected_menu_item = 0  # 0 = Island, 1 = Vet
 
 func _ready():
 	# Get the game manager singleton
@@ -12,7 +11,7 @@ func _ready():
 	# Create the island environment
 	_create_island()
 
-	# Create UI buttons
+	# Create UI
 	_create_ui()
 
 	# Spawn some starting pets
@@ -46,33 +45,49 @@ func _create_island():
 	add_child(camera)
 
 func _create_ui():
-	# Create a simple UI with buttons
+	# Create UI
 	var ui = Control.new()
 	ui.anchor_right = 1.0
 	ui.anchor_bottom = 1.0
+	ui.name = "UI"
 	add_child(ui)
 
-	# Island button
-	var island_btn = Button.new()
-	island_btn.text = "Visit Island"
-	island_btn.rect_position = Vector2(10, 10)
-	island_btn.rect_size = Vector2(150, 40)
-	island_btn.connect("pressed", self, "_go_to_island")
-	ui.add_child(island_btn)
+	# Title
+	var title = Label.new()
+	title.text = "HUB - Unicorn Game"
+	title.rect_position = Vector2(10, 10)
+	title.add_theme_font_size_override("font_size", 24)
+	ui.add_child(title)
 
-	# Vet button
-	var vet_btn = Button.new()
-	vet_btn.text = "Visit Vet"
-	vet_btn.rect_position = Vector2(170, 10)
-	vet_btn.rect_size = Vector2(150, 40)
-	vet_btn.connect("pressed", self, "_go_to_vet")
-	ui.add_child(vet_btn)
+	# Menu options
+	var menu_label = Label.new()
+	menu_label.text = "> Visit Island (Q or UP+SPACE)\n  Visit Vet (V or DOWN+SPACE)"
+	menu_label.rect_position = Vector2(10, 50)
+	menu_label.name = "MenuLabel"
+	ui.add_child(menu_label)
 
-	# Pet info label
-	var pet_label = Label.new()
-	pet_label.text = "Click a pet to see info"
-	pet_label.rect_position = Vector2(10, 60)
-	ui.add_child(pet_label)
+	# Instructions
+	var instructions = Label.new()
+	instructions.text = "Use ARROW KEYS to navigate, SPACE to select"
+	instructions.rect_position = Vector2(10, 150)
+	instructions.add_theme_font_size_override("font_size", 12)
+	ui.add_child(instructions)
+
+	# Pet list
+	var pets_label = Label.new()
+	pets_label.text = "\n\nYour Pets:"
+	pets_label.rect_position = Vector2(10, 200)
+	ui.add_child(pets_label)
+
+	var y_offset = 230
+	var all_pets = game_manager.get_all_pets()
+	for pet_id in all_pets.keys():
+		var pet_info = all_pets[pet_id]
+		var pet_text = Label.new()
+		pet_text.text = "• %s (%s) - Health: %d/100" % [pet_info["name"], pet_info["type"], pet_info["health"]]
+		pet_text.rect_position = Vector2(20, y_offset)
+		ui.add_child(pet_text)
+		y_offset += 25
 
 func _spawn_starting_pets():
 	# Create a few starting pets
@@ -101,16 +116,37 @@ func _go_to_island():
 func _go_to_vet():
 	get_tree().change_scene("res://scenes/VetClinic.tscn")
 
+func _update_menu_display():
+	var menu_label = get_node("UI/MenuLabel")
+	if selected_menu_item == 0:
+		menu_label.text = "> Visit Island (Q or UP+ENTER)\n  Visit Vet (V or DOWN+ENTER)"
+	else:
+		menu_label.text = "  Visit Island (Q or UP+ENTER)\n> Visit Vet (V or DOWN+ENTER)"
+
 func _input(event):
-	if event is InputEventMouseButton and event.pressed:
-		# Raycast to select pets
-		var camera = get_node("Camera3D")
-		var from = camera.project_ray_origin(event.position)
-		var normal = camera.project_ray_normal(event.position)
+	if event is InputEventKey and event.pressed:
+		# Quick keys
+		if event.scancode == KEY_Q:
+			_go_to_island()
+			return
+		if event.scancode == KEY_V:
+			_go_to_vet()
+			return
 
-		var space_state = get_world_3d().direct_space_state
-		var query = PhysicsRayQueryParameters3D.create(from, from + normal * 1000)
-		var result = space_state.intersect_ray(query)
+		# Arrow key navigation
+		if event.scancode == KEY_UP:
+			selected_menu_item = 0
+			_update_menu_display()
+			return
+		if event.scancode == KEY_DOWN:
+			selected_menu_item = 1
+			_update_menu_display()
+			return
 
-		if result:
-			print("Clicked on something: ", result.collider)
+		# Space to select
+		if event.scancode == KEY_SPACE:
+			if selected_menu_item == 0:
+				_go_to_island()
+			else:
+				_go_to_vet()
+			return

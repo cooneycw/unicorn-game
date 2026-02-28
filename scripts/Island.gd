@@ -1,6 +1,6 @@
 extends Node3D
 
-# Island scene - place to find and interact with pets
+# Island scene - Keyboard only controls
 var game_manager
 var pets_in_scene = []
 
@@ -63,26 +63,49 @@ func _create_ui():
 	var ui = Control.new()
 	ui.anchor_right = 1.0
 	ui.anchor_bottom = 1.0
+	ui.name = "UI"
 	add_child(ui)
 
-	# Back button
-	var back_btn = Button.new()
-	back_btn.text = "Back to Hub"
-	back_btn.rect_position = Vector2(10, 10)
-	back_btn.rect_size = Vector2(150, 40)
-	back_btn.connect("pressed", self, "_go_back")
-	ui.add_child(back_btn)
+	# Title
+	var title = Label.new()
+	title.text = "ISLAND"
+	title.rect_position = Vector2(10, 10)
+	title.add_theme_font_size_override("font_size", 24)
+	ui.add_child(title)
 
-	# Info label
-	var info_label = Label.new()
-	info_label.text = "Island - Click on pets to pet them!"
-	info_label.rect_position = Vector2(10, 60)
-	info_label.text_size = 14
-	ui.add_child(info_label)
+	# Instructions
+	var instructions = Label.new()
+	instructions.text = "Press ESC or B to go back to Hub"
+	instructions.rect_position = Vector2(10, 60)
+	ui.add_child(instructions)
+
+	# Pet list
+	var pets_label = Label.new()
+	pets_label.text = "\nPets on this island:"
+	pets_label.rect_position = Vector2(10, 110)
+	ui.add_child(pets_label)
+
+	var y_offset = 140
+	var all_pets = game_manager.get_all_pets()
+	for pet_id in all_pets.keys():
+		var pet_info = all_pets[pet_id]
+		var pet_text = Label.new()
+		pet_text.text = "• %s (%s) - Health: %d/100, Happiness: %d/100" % [
+			pet_info["name"],
+			pet_info["type"],
+			pet_info["health"],
+			pet_info["happiness"]
+		]
+		pet_text.rect_position = Vector2(20, y_offset)
+		ui.add_child(pet_text)
+		y_offset += 25
 
 func _go_back():
 	get_tree().change_scene("res://scenes/Main.tscn")
 
 func _input(event):
-	if event is InputEventMouseButton and event.pressed:
-		print("Clicked on island at: ", event.position)
+	if event is InputEventKey and event.pressed:
+		# Go back with ESC or B
+		if event.scancode == KEY_ESCAPE or event.scancode == KEY_B:
+			_go_back()
+			return
