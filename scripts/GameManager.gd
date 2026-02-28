@@ -32,9 +32,11 @@ const LEVEL_THRESHOLDS: Array = [0, 50, 120, 250, 500, 900, 1400, 2000, 2800, 38
 
 # Whimsical name parts for hatched pets
 const NAME_PREFIXES: Array = ["Star", "Moon", "Sun", "Cloud", "Crystal", "Shadow",
-	"Glitter", "Shimmer", "Frost", "Ember", "Misty", "Velvet", "Dream", "Dusk", "Dawn"]
+	"Glitter", "Shimmer", "Frost", "Ember", "Misty", "Velvet", "Dream", "Dusk", "Dawn",
+	"Biscuit", "Honey", "Whisker", "Paws", "Clover"]
 const NAME_SUFFIXES: Array = ["whisper", "beam", "hooves", "mane", "spark", "shine",
-	"dancer", "song", "flight", "heart", "dust", "glow", "petal", "breeze", "storm"]
+	"dancer", "song", "flight", "heart", "dust", "glow", "petal", "breeze", "storm",
+	"paws", "nose", "fur", "tail", "ears"]
 
 # Color variants per pet type
 const COLOR_VARIANTS = {
@@ -42,6 +44,8 @@ const COLOR_VARIANTS = {
 	"pegasus": [Color.LIGHT_GRAY, Color(0.75, 0.75, 0.75), Color(0.53, 0.81, 0.92), Color(0.73, 0.56, 0.87)],
 	"dragon": [Color.RED, Color(0.0, 0.75, 0.0), Color(0.4, 0.0, 0.6), Color(1.0, 0.5, 0.0)],
 	"alicorn": [Color(0.6, 0.2, 0.8), Color(0.1, 0.1, 0.7), Color.WHITE],
+	"dogocorn": [Color(0.72, 0.53, 0.34), Color(0.95, 0.87, 0.73), Color(0.3, 0.3, 0.3), Color(1.0, 0.85, 0.6)],
+	"catocorn": [Color(0.95, 0.6, 0.2), Color(0.2, 0.2, 0.2), Color(0.85, 0.85, 0.85), Color(0.75, 0.55, 0.35)],
 }
 
 func _ready():
@@ -91,6 +95,7 @@ func _load_saved_data():
 			"xp": int(pet_data.get("xp", 0)),
 			"level": int(pet_data.get("level", 1)),
 			"color_variant": int(pet_data.get("color_variant", 0)),
+			"has_koala": bool(pet_data.get("has_koala", false)),
 		}
 
 	# Restore egg inventory
@@ -218,12 +223,16 @@ func _generate_whimsical_name() -> String:
 
 func _roll_egg_type() -> String:
 	var roll = randf()
-	if roll < 0.50:
+	if roll < 0.30:
 		return "unicorn"
-	elif roll < 0.75:
+	elif roll < 0.50:
 		return "pegasus"
-	elif roll < 0.95:
+	elif roll < 0.65:
 		return "dragon"
+	elif roll < 0.77:
+		return "dogocorn"
+	elif roll < 0.89:
+		return "catocorn"
 	else:
 		return "alicorn"
 
@@ -251,6 +260,7 @@ func add_pet(pet_name: String, pet_type: String) -> int:
 		"xp": 0,
 		"level": 1,
 		"color_variant": 0,
+		"has_koala": randf() < 0.2,
 	}
 	return pet_id
 

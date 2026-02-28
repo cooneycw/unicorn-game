@@ -5,7 +5,7 @@ class_name Pet
 
 var pet_id: int
 var pet_name: String
-var pet_type: String  # "unicorn", "pegasus", "dragon", "alicorn"
+var pet_type: String  # "unicorn", "pegasus", "dragon", "alicorn", "dogocorn", "catocorn"
 
 var _game_manager
 var _audio_manager
@@ -17,6 +17,11 @@ var _head_mesh: MeshInstance3D
 var _wing_l: MeshInstance3D
 var _wing_r: MeshInstance3D
 var _iridescent_time: float = 0.0
+
+# Dog/Cat features
+var _tail_node: Node3D
+var _ear_l: MeshInstance3D
+var _ear_r: MeshInstance3D
 
 # Particles
 var _happy_particles: GPUParticles3D
@@ -43,6 +48,12 @@ func _ready():
 	_build_label()
 	_build_particles()
 
+	# Koala rider
+	if _game_manager:
+		var info = _game_manager.get_pet_info(pet_id)
+		if info and info.get("has_koala", false):
+			_build_koala()
+
 	_game_manager.pet_leveled_up.connect(_on_pet_leveled_up)
 
 	# Randomize bob phase so pets don't all bob in sync
@@ -51,10 +62,22 @@ func _ready():
 func _build_body():
 	_body_mesh = MeshInstance3D.new()
 	var sphere_mesh = SphereMesh.new()
-	sphere_mesh.radius = 0.45
-	sphere_mesh.height = 0.8
+
+	match pet_type:
+		"dogocorn":
+			sphere_mesh.radius = 0.5
+			sphere_mesh.height = 0.9
+			_body_mesh.scale = Vector3(1.1, 0.85, 1.3)  # stocky
+		"catocorn":
+			sphere_mesh.radius = 0.4
+			sphere_mesh.height = 0.75
+			_body_mesh.scale = Vector3(0.9, 0.95, 1.4)  # sleek and long
+		_:
+			sphere_mesh.radius = 0.45
+			sphere_mesh.height = 0.8
+			_body_mesh.scale = Vector3(1.0, 0.9, 1.2)  # original
+
 	_body_mesh.mesh = sphere_mesh
-	_body_mesh.scale = Vector3(1.0, 0.9, 1.2)  # slightly elongated
 
 	var material = StandardMaterial3D.new()
 	material.albedo_color = _get_pet_color()
@@ -65,10 +88,27 @@ func _build_body():
 func _build_head():
 	_head_mesh = MeshInstance3D.new()
 	var head = SphereMesh.new()
-	head.radius = 0.25
-	head.height = 0.5
+
+	match pet_type:
+		"dogocorn":
+			head.radius = 0.28
+			head.height = 0.55
+			_head_mesh.position = Vector3(0, 0.3, -0.4)
+		"catocorn":
+			head.radius = 0.22
+			head.height = 0.44
+			_head_mesh.position = Vector3(0, 0.38, -0.38)
+		"dragon":
+			head.radius = 0.25
+			head.height = 0.5
+			_head_mesh.position = Vector3(0, 0.35, -0.35)
+			_head_mesh.scale = Vector3(1.2, 0.9, 1.1)  # wider dragon head
+		_:
+			head.radius = 0.25
+			head.height = 0.5
+			_head_mesh.position = Vector3(0, 0.35, -0.35)
+
 	_head_mesh.mesh = head
-	_head_mesh.position = Vector3(0, 0.35, -0.35)
 
 	var mat = StandardMaterial3D.new()
 	mat.albedo_color = _get_pet_color()
@@ -76,13 +116,23 @@ func _build_head():
 	add_child(_head_mesh)
 
 	# Eyes
+	var eye_z = -0.55
+	var eye_y = 0.38
+	match pet_type:
+		"dogocorn":
+			eye_z = -0.58
+			eye_y = 0.35
+		"catocorn":
+			eye_z = -0.52
+			eye_y = 0.4
+
 	for side in [-1.0, 1.0]:
 		var eye = MeshInstance3D.new()
 		var eye_mesh = SphereMesh.new()
 		eye_mesh.radius = 0.05
 		eye_mesh.height = 0.1
 		eye.mesh = eye_mesh
-		eye.position = Vector3(side * 0.1, 0.38, -0.55)
+		eye.position = Vector3(side * 0.1, eye_y, eye_z)
 
 		var eye_mat = StandardMaterial3D.new()
 		eye_mat.albedo_color = Color.BLACK
@@ -96,6 +146,24 @@ func _build_legs():
 		Vector3(-0.2, -0.45, 0.2),
 		Vector3(0.2, -0.45, 0.2),
 	]
+
+	# Adjust leg positions for different body shapes
+	match pet_type:
+		"dogocorn":
+			leg_positions = [
+				Vector3(-0.25, -0.42, -0.25),
+				Vector3(0.25, -0.42, -0.25),
+				Vector3(-0.25, -0.42, 0.25),
+				Vector3(0.25, -0.42, 0.25),
+			]
+		"catocorn":
+			leg_positions = [
+				Vector3(-0.18, -0.45, -0.25),
+				Vector3(0.18, -0.45, -0.25),
+				Vector3(-0.18, -0.45, 0.3),
+				Vector3(0.18, -0.45, 0.3),
+			]
+
 	for pos in leg_positions:
 		var leg = MeshInstance3D.new()
 		var cyl = CylinderMesh.new()
@@ -113,14 +181,31 @@ func _build_legs():
 
 func _build_horn():
 	if pet_type == "dragon":
-		return
+		return  # dragons get dragon horns in _build_type_features()
+	if pet_type == "pegasus":
+		return  # pegasus has no horn (winged horse)
+
 	var horn = MeshInstance3D.new()
 	var cone_mesh = CylinderMesh.new()
-	cone_mesh.top_radius = 0.0
-	cone_mesh.bottom_radius = 0.08
-	cone_mesh.height = 0.4
+
+	match pet_type:
+		"dogocorn":
+			cone_mesh.top_radius = 0.0
+			cone_mesh.bottom_radius = 0.07
+			cone_mesh.height = 0.35
+			horn.position = Vector3(0, 0.55, -0.4)
+		"catocorn":
+			cone_mesh.top_radius = 0.0
+			cone_mesh.bottom_radius = 0.06
+			cone_mesh.height = 0.3
+			horn.position = Vector3(0, 0.58, -0.38)
+		_:
+			cone_mesh.top_radius = 0.0
+			cone_mesh.bottom_radius = 0.08
+			cone_mesh.height = 0.4
+			horn.position = Vector3(0, 0.6, -0.35)
+
 	horn.mesh = cone_mesh
-	horn.position = Vector3(0, 0.6, -0.35)
 
 	var horn_material = StandardMaterial3D.new()
 	horn_material.albedo_color = Color.YELLOW
@@ -131,73 +216,376 @@ func _build_horn():
 func _build_type_features():
 	match pet_type:
 		"pegasus":
-			for side in [-1.0, 1.0]:
-				var wing = MeshInstance3D.new()
-				var box = BoxMesh.new()
-				box.size = Vector3(0.5, 0.04, 0.3)
-				wing.mesh = box
-				wing.position = Vector3(side * 0.55, 0.2, 0.0)
-				wing.rotation.z = side * -0.3
-
-				var mat = StandardMaterial3D.new()
-				mat.albedo_color = Color(0.85, 0.85, 0.95)
-				wing.material_override = mat
-
-				if side < 0:
-					wing.name = "Wing_L"
-					_wing_l = wing
-				else:
-					wing.name = "Wing_R"
-					_wing_r = wing
-				add_child(wing)
+			_build_pegasus_wings()
 		"dragon":
-			# Tail
-			var tail = MeshInstance3D.new()
-			var cyl = CylinderMesh.new()
-			cyl.top_radius = 0.04
-			cyl.bottom_radius = 0.1
-			cyl.height = 0.5
-			tail.mesh = cyl
-			tail.position = Vector3(0, 0.0, 0.45)
-			tail.rotation.x = PI / 3
-			tail.name = "Tail"
-
-			var mat = StandardMaterial3D.new()
-			mat.albedo_color = _get_pet_color().darkened(0.2)
-			tail.material_override = mat
-			add_child(tail)
+			_build_dragon_features()
 		"alicorn":
-			# Wings + horn (horn already built above)
-			for side in [-1.0, 1.0]:
-				var wing = MeshInstance3D.new()
-				var box = BoxMesh.new()
-				box.size = Vector3(0.7, 0.05, 0.35)
-				wing.mesh = box
-				wing.position = Vector3(side * 0.65, 0.2, 0.0)
-				wing.rotation.z = side * -0.3
+			_build_alicorn_features()
+		"dogocorn":
+			_build_dog_features()
+		"catocorn":
+			_build_cat_features()
 
-				var mat = StandardMaterial3D.new()
-				mat.albedo_color = Color(0.8, 0.6, 0.95)
-				wing.material_override = mat
+func _build_pegasus_wings():
+	for side in [-1.0, 1.0]:
+		var wing = MeshInstance3D.new()
+		var box = BoxMesh.new()
+		box.size = Vector3(0.5, 0.04, 0.3)
+		wing.mesh = box
+		wing.position = Vector3(side * 0.55, 0.2, 0.0)
+		wing.rotation.z = side * -0.3
 
-				wing.name = "Wing_" + ("L" if side < 0 else "R")
-				add_child(wing)
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.85, 0.85, 0.95)
+		wing.material_override = mat
 
-			# Small wing cones
-			for side in [-1.0, 1.0]:
-				var dwing = MeshInstance3D.new()
-				var dcone = CylinderMesh.new()
-				dcone.top_radius = 0.0
-				dcone.bottom_radius = 0.15
-				dcone.height = 0.35
-				dwing.mesh = dcone
-				dwing.position = Vector3(side * 0.45, 0.25, 0.1)
-				dwing.rotation.z = side * -0.5
+		if side < 0:
+			wing.name = "Wing_L"
+			_wing_l = wing
+		else:
+			wing.name = "Wing_R"
+			_wing_r = wing
+		add_child(wing)
 
-				var dmat = StandardMaterial3D.new()
-				dmat.albedo_color = _get_pet_color().darkened(0.15)
-				dwing.material_override = dmat
-				add_child(dwing)
+func _build_dragon_features():
+	# Dragon wings (larger, bat-like, darker)
+	for side in [-1.0, 1.0]:
+		var wing = MeshInstance3D.new()
+		var box = BoxMesh.new()
+		box.size = Vector3(0.65, 0.04, 0.45)
+		wing.mesh = box
+		wing.position = Vector3(side * 0.6, 0.15, 0.0)
+		wing.rotation.z = side * -0.4
+
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = _get_pet_color().darkened(0.3)
+		wing.material_override = mat
+
+		if side < 0:
+			wing.name = "Wing_L"
+			_wing_l = wing
+		else:
+			wing.name = "Wing_R"
+			_wing_r = wing
+		add_child(wing)
+
+	# Tail
+	var tail = MeshInstance3D.new()
+	var cyl = CylinderMesh.new()
+	cyl.top_radius = 0.04
+	cyl.bottom_radius = 0.1
+	cyl.height = 0.5
+	tail.mesh = cyl
+	tail.position = Vector3(0, 0.0, 0.45)
+	tail.rotation.x = PI / 3
+	tail.name = "Tail"
+
+	var tail_mat = StandardMaterial3D.new()
+	tail_mat.albedo_color = _get_pet_color().darkened(0.2)
+	tail.material_override = tail_mat
+	add_child(tail)
+
+	# Tail spike (diamond shape at end)
+	var tail_spike = MeshInstance3D.new()
+	var spike_mesh = CylinderMesh.new()
+	spike_mesh.top_radius = 0.0
+	spike_mesh.bottom_radius = 0.08
+	spike_mesh.height = 0.12
+	tail_spike.mesh = spike_mesh
+	tail_spike.position = Vector3(0, 0.3, 0.7)
+	var spike_mat = StandardMaterial3D.new()
+	spike_mat.albedo_color = _get_pet_color().darkened(0.35)
+	tail_spike.material_override = spike_mat
+	add_child(tail_spike)
+
+	# Spines along back
+	for i in range(4):
+		var spine = MeshInstance3D.new()
+		var cone = CylinderMesh.new()
+		cone.top_radius = 0.0
+		cone.bottom_radius = 0.06
+		cone.height = 0.2
+		spine.mesh = cone
+		spine.position = Vector3(0, 0.38, -0.15 + i * 0.18)
+
+		var smat = StandardMaterial3D.new()
+		smat.albedo_color = _get_pet_color().darkened(0.15)
+		spine.material_override = smat
+		add_child(spine)
+
+	# Dragon horns (two small curved horns on head)
+	for side in [-1.0, 1.0]:
+		var dhorn = MeshInstance3D.new()
+		var dcone = CylinderMesh.new()
+		dcone.top_radius = 0.0
+		dcone.bottom_radius = 0.04
+		dcone.height = 0.18
+		dhorn.mesh = dcone
+		dhorn.position = Vector3(side * 0.12, 0.55, -0.35)
+		dhorn.rotation.z = side * 0.3
+
+		var dhmat = StandardMaterial3D.new()
+		dhmat.albedo_color = Color(0.3, 0.3, 0.3)
+		dhorn.material_override = dhmat
+		add_child(dhorn)
+
+	# Snout / muzzle
+	var snout = MeshInstance3D.new()
+	var snout_mesh = SphereMesh.new()
+	snout_mesh.radius = 0.08
+	snout_mesh.height = 0.1
+	snout.mesh = snout_mesh
+	snout.position = Vector3(0, 0.32, -0.58)
+
+	var snout_mat = StandardMaterial3D.new()
+	snout_mat.albedo_color = _get_pet_color().darkened(0.1)
+	snout.material_override = snout_mat
+	add_child(snout)
+
+func _build_alicorn_features():
+	# Wings + horn (horn already built above)
+	for side in [-1.0, 1.0]:
+		var wing = MeshInstance3D.new()
+		var box = BoxMesh.new()
+		box.size = Vector3(0.7, 0.05, 0.35)
+		wing.mesh = box
+		wing.position = Vector3(side * 0.65, 0.2, 0.0)
+		wing.rotation.z = side * -0.3
+
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.8, 0.6, 0.95)
+		wing.material_override = mat
+
+		wing.name = "Wing_" + ("L" if side < 0 else "R")
+		if side < 0:
+			_wing_l = wing
+		else:
+			_wing_r = wing
+		add_child(wing)
+
+	# Small wing cones
+	for side in [-1.0, 1.0]:
+		var dwing = MeshInstance3D.new()
+		var dcone = CylinderMesh.new()
+		dcone.top_radius = 0.0
+		dcone.bottom_radius = 0.15
+		dcone.height = 0.35
+		dwing.mesh = dcone
+		dwing.position = Vector3(side * 0.45, 0.25, 0.1)
+		dwing.rotation.z = side * -0.5
+
+		var dmat = StandardMaterial3D.new()
+		dmat.albedo_color = _get_pet_color().darkened(0.15)
+		dwing.material_override = dmat
+		add_child(dwing)
+
+func _build_dog_features():
+	# Floppy ears
+	for side in [-1.0, 1.0]:
+		var ear = MeshInstance3D.new()
+		var ear_mesh = SphereMesh.new()
+		ear_mesh.radius = 0.1
+		ear_mesh.height = 0.15
+		ear.mesh = ear_mesh
+		ear.position = Vector3(side * 0.2, 0.25, -0.4)
+		ear.rotation.z = side * 0.5  # drooping outward
+		ear.scale = Vector3(0.6, 1.0, 0.8)
+
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = _get_pet_color().darkened(0.15)
+		ear.material_override = mat
+
+		if side < 0:
+			_ear_l = ear
+		else:
+			_ear_r = ear
+		add_child(ear)
+
+	# Short wagging tail
+	_tail_node = Node3D.new()
+	_tail_node.position = Vector3(0, 0.05, 0.45)
+	_tail_node.name = "DogTail"
+
+	var tail_mesh_inst = MeshInstance3D.new()
+	var tail_cyl = CylinderMesh.new()
+	tail_cyl.top_radius = 0.03
+	tail_cyl.bottom_radius = 0.06
+	tail_cyl.height = 0.25
+	tail_mesh_inst.mesh = tail_cyl
+	tail_mesh_inst.rotation.x = -PI / 4  # angled upward
+
+	var tail_mat = StandardMaterial3D.new()
+	tail_mat.albedo_color = _get_pet_color().darkened(0.1)
+	tail_mesh_inst.material_override = tail_mat
+	_tail_node.add_child(tail_mesh_inst)
+	add_child(_tail_node)
+
+	# Snout
+	var snout = MeshInstance3D.new()
+	var snout_mesh = SphereMesh.new()
+	snout_mesh.radius = 0.1
+	snout_mesh.height = 0.12
+	snout.mesh = snout_mesh
+	snout.position = Vector3(0, 0.28, -0.58)
+
+	var snout_mat = StandardMaterial3D.new()
+	snout_mat.albedo_color = _get_pet_color().lightened(0.1)
+	snout.material_override = snout_mat
+	add_child(snout)
+
+	# Nose tip
+	var nose = MeshInstance3D.new()
+	var nose_mesh = SphereMesh.new()
+	nose_mesh.radius = 0.04
+	nose_mesh.height = 0.06
+	nose.mesh = nose_mesh
+	nose.position = Vector3(0, 0.3, -0.65)
+
+	var nose_mat = StandardMaterial3D.new()
+	nose_mat.albedo_color = Color(0.15, 0.1, 0.1)
+	nose.material_override = nose_mat
+	add_child(nose)
+
+func _build_cat_features():
+	# Pointed ears
+	for side in [-1.0, 1.0]:
+		var ear = MeshInstance3D.new()
+		var ear_mesh = CylinderMesh.new()
+		ear_mesh.top_radius = 0.0
+		ear_mesh.bottom_radius = 0.07
+		ear_mesh.height = 0.15
+		ear.mesh = ear_mesh
+		ear.position = Vector3(side * 0.13, 0.55, -0.38)
+		ear.rotation.z = side * -0.2
+
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = _get_pet_color().darkened(0.1)
+		ear.material_override = mat
+
+		if side < 0:
+			_ear_l = ear
+		else:
+			_ear_r = ear
+		add_child(ear)
+
+	# Long curving tail
+	_tail_node = Node3D.new()
+	_tail_node.position = Vector3(0, 0.0, 0.5)
+	_tail_node.name = "CatTail"
+
+	var tail_base = MeshInstance3D.new()
+	var tail_cyl = CylinderMesh.new()
+	tail_cyl.top_radius = 0.025
+	tail_cyl.bottom_radius = 0.05
+	tail_cyl.height = 0.5
+	tail_base.mesh = tail_cyl
+	tail_base.rotation.x = PI / 3
+	tail_base.position.y = 0.15
+
+	var tail_mat = StandardMaterial3D.new()
+	tail_mat.albedo_color = _get_pet_color().darkened(0.15)
+	tail_base.material_override = tail_mat
+	_tail_node.add_child(tail_base)
+
+	# Tail tip
+	var tip = MeshInstance3D.new()
+	var tip_mesh = SphereMesh.new()
+	tip_mesh.radius = 0.035
+	tip_mesh.height = 0.06
+	tip.mesh = tip_mesh
+	tip.position = Vector3(0, 0.4, 0.15)
+
+	var tip_mat = StandardMaterial3D.new()
+	tip_mat.albedo_color = _get_pet_color().darkened(0.2)
+	tip.material_override = tip_mat
+	_tail_node.add_child(tip)
+	add_child(_tail_node)
+
+	# Whiskers (4 thin horizontal cylinders)
+	for side in [-1.0, 1.0]:
+		for offset in [-0.03, 0.03]:
+			var whisker = MeshInstance3D.new()
+			var w_mesh = CylinderMesh.new()
+			w_mesh.top_radius = 0.003
+			w_mesh.bottom_radius = 0.003
+			w_mesh.height = 0.15
+			whisker.mesh = w_mesh
+			whisker.position = Vector3(side * 0.15, 0.33 + offset, -0.52)
+			whisker.rotation.z = PI / 2
+			whisker.rotation.y = side * 0.3
+
+			var w_mat = StandardMaterial3D.new()
+			w_mat.albedo_color = Color(0.9, 0.9, 0.9)
+			whisker.material_override = w_mat
+			add_child(whisker)
+
+func _build_koala():
+	var koala_root = Node3D.new()
+	koala_root.position = Vector3(0, 0.45, 0.05)
+	koala_root.name = "Koala"
+
+	# Body
+	var body = MeshInstance3D.new()
+	var body_mesh = SphereMesh.new()
+	body_mesh.radius = 0.12
+	body_mesh.height = 0.2
+	body.mesh = body_mesh
+	var bmat = StandardMaterial3D.new()
+	bmat.albedo_color = Color(0.55, 0.55, 0.55)
+	body.material_override = bmat
+	koala_root.add_child(body)
+
+	# Head
+	var head = MeshInstance3D.new()
+	var head_mesh = SphereMesh.new()
+	head_mesh.radius = 0.09
+	head_mesh.height = 0.16
+	head.mesh = head_mesh
+	head.position = Vector3(0, 0.18, -0.05)
+	var hmat = StandardMaterial3D.new()
+	hmat.albedo_color = Color(0.6, 0.6, 0.6)
+	head.material_override = hmat
+	koala_root.add_child(head)
+
+	# Round fluffy ears
+	for side in [-1.0, 1.0]:
+		var ear = MeshInstance3D.new()
+		var ear_mesh = SphereMesh.new()
+		ear_mesh.radius = 0.055
+		ear_mesh.height = 0.065
+		ear.mesh = ear_mesh
+		ear.position = Vector3(side * 0.08, 0.25, -0.05)
+		var emat = StandardMaterial3D.new()
+		emat.albedo_color = Color(0.4, 0.4, 0.4)
+		ear.material_override = emat
+		koala_root.add_child(ear)
+
+	# Eyes
+	for side in [-1.0, 1.0]:
+		var eye = MeshInstance3D.new()
+		var eye_mesh = SphereMesh.new()
+		eye_mesh.radius = 0.02
+		eye_mesh.height = 0.03
+		eye.mesh = eye_mesh
+		eye.position = Vector3(side * 0.04, 0.2, -0.12)
+		var eyemat = StandardMaterial3D.new()
+		eyemat.albedo_color = Color.BLACK
+		eye.material_override = eyemat
+		koala_root.add_child(eye)
+
+	# Nose
+	var nose = MeshInstance3D.new()
+	var nose_mesh = SphereMesh.new()
+	nose_mesh.radius = 0.025
+	nose_mesh.height = 0.03
+	nose.mesh = nose_mesh
+	nose.position = Vector3(0, 0.17, -0.13)
+	var nmat = StandardMaterial3D.new()
+	nmat.albedo_color = Color(0.15, 0.1, 0.1)
+	nose.material_override = nmat
+	koala_root.add_child(nose)
+
+	add_child(koala_root)
 
 func _build_label():
 	_label3d = Label3D.new()
@@ -297,17 +685,36 @@ func _process(delta: float):
 
 	position.y = _base_y + sin(_bob_time * speed) * amplitude
 
-	# Pegasus wing flapping
-	if pet_type == "pegasus" and _wing_l and _wing_r:
-		var flap = sin(_bob_time * 4.0) * 0.15
-		_wing_l.rotation.z = 0.3 + flap
-		_wing_r.rotation.z = -0.3 - flap
+	# Wing flapping — pegasus, dragon, alicorn all have wings
+	if _wing_l and _wing_r:
+		match pet_type:
+			"pegasus":
+				var flap = sin(_bob_time * 4.0) * 0.15
+				_wing_l.rotation.z = 0.3 + flap
+				_wing_r.rotation.z = -0.3 - flap
+			"dragon":
+				var flap = sin(_bob_time * 2.5) * 0.2  # slower, more powerful
+				_wing_l.rotation.z = 0.4 + flap
+				_wing_r.rotation.z = -0.4 - flap
+			"alicorn":
+				var flap = sin(_bob_time * 3.5) * 0.15
+				_wing_l.rotation.z = 0.3 + flap
+				_wing_r.rotation.z = -0.3 - flap
 
 	# Dragon tail sway
 	if pet_type == "dragon":
 		var tail_node = get_node_or_null("Tail")
 		if tail_node:
 			tail_node.rotation.y = sin(_bob_time * 1.5) * 0.3
+
+	# Dog tail wag (fast side-to-side)
+	if pet_type == "dogocorn" and _tail_node:
+		_tail_node.rotation.y = sin(_bob_time * 8.0) * 0.4
+
+	# Cat tail swish (slow, elegant)
+	if pet_type == "catocorn" and _tail_node:
+		_tail_node.rotation.y = sin(_bob_time * 1.2) * 0.5
+		_tail_node.rotation.x = sin(_bob_time * 0.8) * 0.1
 
 	# Iridescent color cycle for alicorn with variant 2
 	if pet_type == "alicorn" and _body_mesh and _body_mesh.material_override:
@@ -423,5 +830,9 @@ func _get_pet_color() -> Color:
 			return Color.RED
 		"alicorn":
 			return Color(0.6, 0.2, 0.8)
+		"dogocorn":
+			return Color(0.72, 0.53, 0.34)
+		"catocorn":
+			return Color(0.95, 0.6, 0.2)
 		_:
 			return Color.WHITE

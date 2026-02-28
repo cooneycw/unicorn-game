@@ -3,8 +3,8 @@ extends Node3D
 # Main game scene (Hub) — mood summaries, coins, eggs, achievements
 var game_manager
 var audio_manager
-var selected_menu_item = 0  # 0 = Island, 1 = Vet, 2 = Mini-Game, 3 = Memory Game, 4 = Achievements
-var menu_count = 5
+var selected_menu_item = 0
+var menu_count = 8
 
 var _pets_container: VBoxContainer
 var _coins_label: Label
@@ -146,7 +146,7 @@ func _create_ui():
 
 	# Gameplay tips
 	var tips = Label.new()
-	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nCollect eggs on the Island — they hatch into new pets!\nEarn coins by playing! Try Mini-Game or Memory Match for extra coins!"
+	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nCollect eggs on the Island — they hatch into new pets!\nEarn coins by playing! Try the mini-games for extra coins!\nCtrl+S to save anytime."
 	tips.add_theme_font_size_override("font_size", 12)
 	tips.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(tips)
@@ -179,8 +179,9 @@ func _refresh_pet_list():
 		if lowest_val < 30:
 			warning = "  [!%s: %d]" % [lowest_name, lowest_val]
 
+		var koala_str = " [K]" if info.get("has_koala", false) else ""
 		var row = Label.new()
-		row.text = "%s %s Lv%d (%s) — %s%s" % [emoji, info["name"], level, info["type"], mood, warning]
+		row.text = "%s %s Lv%d (%s)%s — %s%s" % [emoji, info["name"], level, info["type"], koala_str, mood, warning]
 
 		if lowest_val < 20:
 			row.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
@@ -257,6 +258,24 @@ func _go_to_memory_game():
 		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/MemoryGame.tscn")
 
+func _go_to_math_game():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
+	get_tree().change_scene_to_file("res://scenes/MathGame.tscn")
+
+func _go_to_sudoku():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
+	get_tree().change_scene_to_file("res://scenes/SudokuGame.tscn")
+
+func _go_to_spelling():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
+	get_tree().change_scene_to_file("res://scenes/SpellingGame.tscn")
+
 func _go_to_achievements():
 	var save_manager = get_tree().root.get_node_or_null("SaveManager")
 	if save_manager:
@@ -269,8 +288,11 @@ func _update_menu_display():
 	var options = [
 		"Visit Island (Q)",
 		"Visit Vet (V)",
-		"Play Mini-Game (T)",
+		"Play Treat Catch (T)",
 		"Memory Match (G)",
+		"Math Challenge (N)",
+		"Sudoku Puzzle (U)",
+		"Spelling Bee (L)",
 		"Achievements (A)"
 	]
 	var text = ""
@@ -293,6 +315,13 @@ func _input(event):
 		if _welcome_label.visible:
 			_welcome_label.visible = false
 
+		# Manual save
+		if event.keycode == KEY_S and event.ctrl_pressed:
+			var save_manager = get_tree().root.get_node_or_null("SaveManager")
+			if save_manager:
+				save_manager.save_game()
+			return
+
 		if event.keycode == KEY_Q:
 			_go_to_island()
 			return
@@ -304,6 +333,15 @@ func _input(event):
 			return
 		if event.keycode == KEY_G:
 			_go_to_memory_game()
+			return
+		if event.keycode == KEY_N:
+			_go_to_math_game()
+			return
+		if event.keycode == KEY_U:
+			_go_to_sudoku()
+			return
+		if event.keycode == KEY_L:
+			_go_to_spelling()
 			return
 		if event.keycode == KEY_A:
 			_go_to_achievements()
@@ -335,5 +373,11 @@ func _input(event):
 				3:
 					_go_to_memory_game()
 				4:
+					_go_to_math_game()
+				5:
+					_go_to_sudoku()
+				6:
+					_go_to_spelling()
+				7:
 					_go_to_achievements()
 			return
