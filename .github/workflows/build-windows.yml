@@ -75,14 +75,39 @@ jobs:
               <StandardDirectory Id="ProgramFilesFolder">
                 <Directory Id="INSTALLFOLDER" Name="UnicornGame" />
               </StandardDirectory>
+              <StandardDirectory Id="ProgramMenuFolder">
+                <Directory Id="StartMenuFolder" Name="Unicorn Game" />
+              </StandardDirectory>
+              <StandardDirectory Id="DesktopFolder" />
             </Fragment>
             <Fragment>
-              <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-                <Component>
+              <ComponentGroup Id="ProductComponents">
+                <Component Directory="INSTALLFOLDER">
                   <File Source="UnicornGame.exe" />
+                  <Shortcut Id="DesktopShortcut"
+                            Directory="DesktopFolder"
+                            Name="Unicorn Game"
+                            Advertise="no"
+                            Target="[INSTALLFOLDER]UnicornGame.exe"
+                            WorkingDirectory="INSTALLFOLDER" />
+                  <Shortcut Id="StartMenuShortcut"
+                            Directory="StartMenuFolder"
+                            Name="Unicorn Game"
+                            Advertise="no"
+                            Target="[INSTALLFOLDER]UnicornGame.exe"
+                            WorkingDirectory="INSTALLFOLDER" />
+                  <RegistryValue Root="HKCU" Key="Software\UnicornGame"
+                                 Name="installed" Type="integer" Value="1"
+                                 KeyPath="yes" />
                 </Component>
-                <Component>
+                <Component Directory="INSTALLFOLDER">
                   <File Source="UnicornGame.pck" />
+                </Component>
+                <Component Directory="StartMenuFolder">
+                  <RemoveFolder Id="RemoveStartMenuFolder" On="uninstall" />
+                  <RegistryValue Root="HKCU" Key="Software\UnicornGame"
+                                 Name="startmenu" Type="integer" Value="1"
+                                 KeyPath="yes" />
                 </Component>
               </ComponentGroup>
             </Fragment>
