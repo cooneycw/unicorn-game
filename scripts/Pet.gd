@@ -5,13 +5,14 @@ class_name Pet
 
 var pet_id: int
 var pet_name: String
-var pet_type: String  # "unicorn", "pegasus", "dragon"
+var pet_type: String  # "unicorn", "pegasus", "dragon", "alicorn"
 
 var _game_manager
 var _base_y: float = 0.0
 var _bob_time: float = 0.0
 var _label3d: Label3D
 var _body_mesh: MeshInstance3D
+var _iridescent_time: float = 0.0
 
 func _ready():
 	_game_manager = get_tree().root.get_node("GameManager")
@@ -22,6 +23,8 @@ func _ready():
 	_build_horn()
 	_build_type_features()
 	_build_label()
+
+	_game_manager.pet_leveled_up.connect(_on_pet_leveled_up)
 
 	# Randomize bob phase so pets don't all bob in sync
 	_bob_time = randf() * TAU
@@ -62,9 +65,8 @@ func _build_legs():
 		add_child(leg)
 
 func _build_horn():
-	# All pet types get a horn on the head (repositioned to head height)
 	if pet_type == "dragon":
-		return  # dragons don't have horns
+		return
 	var horn = MeshInstance3D.new()
 	var cone_mesh = CylinderMesh.new()
 	cone_mesh.top_radius = 0.0
@@ -82,7 +84,6 @@ func _build_horn():
 func _build_type_features():
 	match pet_type:
 		"pegasus":
-			# Wing boxes on each side
 			for side in [-1.0, 1.0]:
 				var wing = MeshInstance3D.new()
 				var box = BoxMesh.new()
@@ -98,7 +99,6 @@ func _build_type_features():
 				wing.name = "Wing_" + ("L" if side < 0 else "R")
 				add_child(wing)
 		"dragon":
-			# Tail cylinder behind
 			var tail = MeshInstance3D.new()
 			var cyl = CylinderMesh.new()
 			cyl.top_radius = 0.04
@@ -113,6 +113,22 @@ func _build_type_features():
 			tail.material_override = mat
 
 			add_child(tail)
+		"alicorn":
+			# Wings + horn (horn already built above)
+			for side in [-1.0, 1.0]:
+				var wing = MeshInstance3D.new()
+				var box = BoxMesh.new()
+				box.size = Vector3(0.7, 0.05, 0.35)
+				wing.mesh = box
+				wing.position = Vector3(side * 0.65, 0.2, 0.0)
+				wing.rotation.z = side * -0.3
+
+				var mat = StandardMaterial3D.new()
+				mat.albedo_color = Color(0.8, 0.6, 0.95)
+				wing.material_override = mat
+
+				wing.name = "Wing_" + ("L" if side < 0 else "R")
+				add_child(wing)
 
 func _build_label():
 	_label3d = Label3D.new()
@@ -127,10 +143,10 @@ func _update_label():
 	if _label3d == null or _game_manager == null:
 		return
 	var emoji = _game_manager.get_mood_emoji(pet_id)
-	_label3d.text = pet_name + " " + emoji
+	var level = _game_manager.get_level(pet_id)
+	_label3d.text = "%s Lv%d %s" % [pet_name, level, emoji]
 
 func _process(delta: float):
-	# Bobbing animation
 	_bob_time += delta
 	var mood = "content"
 	if _game_manager:
@@ -160,14 +176,54 @@ func _process(delta: float):
 
 	position.y = _base_y + sin(_bob_time * speed) * amplitude
 
+	# Iridescent color cycle for alicorn with variant 2
+	if pet_type == "alicorn" and _body_mesh and _body_mesh.material_override:
+		var info = _game_manager.get_pet_info(pet_id)
+		if info and info["color_variant"] == 2:
+			_iridescent_time += delta
+			var r = (sin(_iridescent_time * 1.0) + 1.0) / 2.0
+			var g = (sin(_iridescent_time * 1.3 + 2.0) + 1.0) / 2.0
+			var b = (sin(_iridescent_time * 1.7 + 4.0) + 1.0) / 2.0
+			_body_mesh.material_override.albedo_color = Color(r, g, b)
+
 	_update_label()
+
+func _on_pet_leveled_up(leveled_pet_id: int, _new_level: int):
+	if leveled_pet_id != pet_id:
+		return
+	do_level_up_reaction()
 
 func do_happy_reaction():
 	var tween = create_tween()
 	tween.tween_property(self, "scale", Vector3(1.2, 1.2, 1.2), 0.15)
 	tween.tween_property(self, "scale", Vector3(1.0, 1.0, 1.0), 0.15)
 
+func do_level_up_reaction():
+	# Bigger bounce + flash
+	var tween = create_tween()
+	tween.tween_property(self, "scale", Vector3(1.4, 1.4, 1.4), 0.2)
+	tween.tween_property(self, "scale", Vector3(0.9, 0.9, 0.9), 0.1)
+	tween.tween_property(self, "scale", Vector3(1.1, 1.1, 1.1), 0.1)
+	tween.tween_property(self, "scale", Vector3(1.0, 1.0, 1.0), 0.1)
+
+	# Show "LEVEL UP!" text briefly
+	var level_label = Label3D.new()
+	level_label.text = "LEVEL UP!"
+	level_label.font_size = 64
+	level_label.position.y = 1.8
+	level_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	level_label.no_depth_test = true
+	level_label.modulate = Color.GOLD
+	add_child(level_label)
+
+	var label_tween = create_tween()
+	label_tween.tween_property(level_label, "position:y", 2.5, 1.5)
+	label_tween.parallel().tween_property(level_label, "modulate:a", 0.0, 1.5)
+	label_tween.tween_callback(level_label.queue_free)
+
 func _get_pet_color() -> Color:
+	if _game_manager:
+		return _game_manager.get_pet_color(pet_id)
 	match pet_type:
 		"unicorn":
 			return Color.WHITE
@@ -175,5 +231,7 @@ func _get_pet_color() -> Color:
 			return Color.LIGHT_GRAY
 		"dragon":
 			return Color.RED
+		"alicorn":
+			return Color(0.6, 0.2, 0.8)
 		_:
 			return Color.WHITE

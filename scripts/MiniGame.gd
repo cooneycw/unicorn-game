@@ -203,10 +203,18 @@ func _end_game():
 		game_manager.modify_coins(_coins_earned)
 	if _active_pet_id >= 0 and _score > 0:
 		game_manager.modify_stat(_active_pet_id, "happiness", _score * 2)
+		game_manager.add_xp(_active_pet_id, _score)
+
+	# Check achievements
+	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
+	if achievement_mgr:
+		achievement_mgr.check_mini_game_score(_score)
+		achievement_mgr.check_all()
 
 	# Show results
-	_result_label.text = "GAME OVER!\n\nScore: %d\nCoins earned: %d\nHappiness bonus: +%d\n\nPress ESC to return to Hub" % [
-		_score, max(0, _coins_earned), max(0, _score * 2)
+	var xp_bonus = max(0, _score)
+	_result_label.text = "GAME OVER!\n\nScore: %d\nCoins earned: %d\nHappiness bonus: +%d\nXP bonus: +%d\n\nPress ESC to return to Hub" % [
+		_score, max(0, _coins_earned), max(0, _score * 2), xp_bonus
 	]
 	_result_label.visible = true
 

@@ -143,13 +143,17 @@ func _heal_pet():
 	if success:
 		var pet_info = game_manager.get_pet_info(selected_pet_id)
 		var status_label = get_node("UI/StatusLabel")
-		status_label.text = "HEALED! %s's health increased to %d/100 (-10 coins)\n\nPress H to heal again, or UP/DOWN to select another pet" % [
+		status_label.text = "HEALED! %s's health increased to %d (-10 coins, +3 XP)\n\nPress H to heal again, or UP/DOWN to select another pet" % [
 			pet_info["name"],
 			pet_info["health"]
 		]
 
 		var pet_text = get_node("UI/Pet_%d" % selected_pet_id)
 		pet_text.text = "> %s (%s) - Health: %d/100" % [pet_info["name"], pet_info["type"], pet_info["health"]]
+
+		var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
+		if achievement_mgr:
+			achievement_mgr.check_all()
 
 func _go_back():
 	var save_manager = get_tree().root.get_node_or_null("SaveManager")

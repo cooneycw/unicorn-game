@@ -1,13 +1,14 @@
 extends Node3D
 
-# Main game scene (Hub) — mood summaries, coins, container layout
+# Main game scene (Hub) — mood summaries, coins, eggs, achievements
 var game_manager
-var selected_menu_item = 0  # 0 = Island, 1 = Vet, 2 = Mini-Game
+var selected_menu_item = 0  # 0 = Island, 1 = Vet, 2 = Mini-Game, 3 = Achievements
 
 var _pets_container: VBoxContainer
 var _coins_label: Label
 var _menu_label: Label
 var _welcome_label: Label
+var _egg_label: Label
 
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
@@ -22,12 +23,18 @@ func _ready():
 
 	game_manager.pet_stat_changed.connect(_on_stat_changed)
 	game_manager.coins_changed.connect(_on_coins_changed)
+	game_manager.pet_added.connect(_on_pet_added)
 
 	# Show welcome back message if returning from save
 	var welcome_msg = game_manager.get_welcome_message()
 	if welcome_msg != "":
 		_welcome_label.text = welcome_msg
 		_welcome_label.visible = true
+
+	# Check achievements on hub load
+	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
+	if achievement_mgr:
+		achievement_mgr.check_all()
 
 func _create_island():
 	var ground = MeshInstance3D.new()
@@ -61,7 +68,7 @@ func _create_ui():
 	# Main vertical layout
 	var vbox = VBoxContainer.new()
 	vbox.position = Vector2(10, 10)
-	vbox.size = Vector2(400, 600)
+	vbox.size = Vector2(500, 600)
 	ui.add_child(vbox)
 
 	# Title row
@@ -105,6 +112,13 @@ func _create_ui():
 	# Separator
 	vbox.add_child(HSeparator.new())
 
+	# Egg status
+	_egg_label = Label.new()
+	_egg_label.name = "EggLabel"
+	_egg_label.add_theme_font_size_override("font_size", 14)
+	_egg_label.add_theme_color_override("font_color", Color(0.8, 0.7, 1.0))
+	vbox.add_child(_egg_label)
+
 	# Pet summaries header
 	var pets_header = Label.new()
 	pets_header.text = "Your Pets:"
@@ -121,7 +135,7 @@ func _create_ui():
 
 	# Gameplay tips
 	var tips = Label.new()
-	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nEarn coins by playing! Healing at the Vet costs 10 coins.\nTry the Mini-Game to earn extra coins!"
+	tips.text = "Tips: Visit the Island to feed, play, and rest with your pets.\nCollect eggs on the Island — they hatch into new pets!\nTry the Mini-Game to earn coins and XP!"
 	tips.add_theme_font_size_override("font_size", 12)
 	tips.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(tips)
@@ -136,6 +150,7 @@ func _refresh_pet_list():
 		var info = all_pets[pet_id]
 		var mood = game_manager.get_pet_mood(pet_id)
 		var emoji = game_manager.get_mood_emoji(pet_id)
+		var level = game_manager.get_level(pet_id)
 
 		# Find lowest stat for warning
 		var stats = {
@@ -156,7 +171,7 @@ func _refresh_pet_list():
 			warning = "  [!%s: %d]" % [lowest_name, lowest_val]
 
 		var row = Label.new()
-		row.text = "%s %s (%s) — %s%s" % [emoji, info["name"], info["type"], mood, warning]
+		row.text = "%s %s Lv%d (%s) — %s%s" % [emoji, info["name"], level, info["type"], mood, warning]
 
 		if lowest_val < 20:
 			row.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
@@ -164,6 +179,21 @@ func _refresh_pet_list():
 			row.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
 
 		_pets_container.add_child(row)
+
+	_update_egg_display()
+
+func _update_egg_display():
+	if _egg_label == null:
+		return
+	var eggs = game_manager.egg_inventory
+	if eggs.size() == 0:
+		_egg_label.text = "Eggs: None (visit the Island to find some!)"
+	else:
+		var parts = []
+		for egg in eggs:
+			var mins = ceili(egg["time_remaining"] / 60.0)
+			parts.append("%s egg (~%dm)" % [egg["type"].capitalize(), mins])
+		_egg_label.text = "Eggs: %s" % ", ".join(parts)
 
 func _spawn_starting_pets():
 	var pet_names = ["Sparkle", "Rainbow", "Cloud", "Moonlight"]
@@ -190,6 +220,10 @@ func _on_stat_changed(_pet_id: int, _stat_name: String, _new_value: int):
 func _on_coins_changed(new_amount: int):
 	_coins_label.text = "Coins: %d" % new_amount
 
+func _on_pet_added(pet_id: int):
+	_spawn_pet_in_world(pet_id)
+	_refresh_pet_list()
+
 func _go_to_island():
 	var save_manager = get_tree().root.get_node_or_null("SaveManager")
 	if save_manager:
@@ -208,15 +242,24 @@ func _go_to_minigame():
 		save_manager.on_scene_transition()
 	get_tree().change_scene_to_file("res://scenes/MiniGame.tscn")
 
+func _go_to_achievements():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
+	get_tree().change_scene_to_file("res://scenes/AchievementScreen.tscn")
+
 func _update_menu_display():
 	if _menu_label == null:
 		return
 	var lines = ""
-	var items = ["Visit Island (Q)", "Visit Vet (V)", "Play Mini-Game (M)"]
+	var items = ["Visit Island (Q)", "Visit Vet (V)", "Play Mini-Game (G)", "Achievements (A)"]
 	for i in range(items.size()):
 		var prefix = "> " if i == selected_menu_item else "  "
 		lines += prefix + items[i] + "\n"
 	_menu_label.text = lines.strip_edges()
+
+func _process(_delta: float):
+	_update_egg_display()
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
@@ -230,8 +273,11 @@ func _input(event):
 		if event.keycode == KEY_V:
 			_go_to_vet()
 			return
-		if event.keycode == KEY_M:
+		if event.keycode == KEY_G:
 			_go_to_minigame()
+			return
+		if event.keycode == KEY_A:
+			_go_to_achievements()
 			return
 
 		if event.keycode == KEY_UP:
@@ -239,15 +285,14 @@ func _input(event):
 			_update_menu_display()
 			return
 		if event.keycode == KEY_DOWN:
-			selected_menu_item = min(2, selected_menu_item + 1)
+			selected_menu_item = min(3, selected_menu_item + 1)
 			_update_menu_display()
 			return
 
 		if event.keycode == KEY_SPACE:
-			if selected_menu_item == 0:
-				_go_to_island()
-			elif selected_menu_item == 1:
-				_go_to_vet()
-			else:
-				_go_to_minigame()
+			match selected_menu_item:
+				0: _go_to_island()
+				1: _go_to_vet()
+				2: _go_to_minigame()
+				3: _go_to_achievements()
 			return
