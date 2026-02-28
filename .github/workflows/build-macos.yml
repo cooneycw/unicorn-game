@@ -37,8 +37,9 @@ jobs:
         run: |
           cd build/macos
           unzip -q UnicornGame.zip
+          APP_NAME=$(ls -d *.app | head -1)
           mkdir -p UnicornGame-DMG
-          cp -r UnicornGame.app UnicornGame-DMG/
+          cp -r "$APP_NAME" UnicornGame-DMG/
           ln -s /Applications UnicornGame-DMG/Applications
           hdiutil create -volname "Unicorn Game" -srcfolder UnicornGame-DMG -ov -format UDZO UnicornGame.dmg
 

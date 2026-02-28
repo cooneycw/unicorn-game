@@ -44,8 +44,7 @@ jobs:
           cat > build/windows/Product.wxs << 'EOF'
           <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
             <Package Name="Unicorn Game" Version="1.0.0.0" Manufacturer="Unicorn Game"
-                     UpgradeCode="12345678-1234-1234-1234-123456789012"
-                     ProductCode="*">
+                     UpgradeCode="12345678-1234-1234-1234-123456789012">
               <MajorUpgrade DowngradeErrorMessage="A newer version of Unicorn Game is already installed." />
               <MediaTemplate EmbedCab="yes" />
               <Feature Id="ProductFeature">
@@ -53,11 +52,9 @@ jobs:
               </Feature>
             </Package>
             <Fragment>
-              <Directory Id="TARGETDIR" Name="SourceDir">
-                <Directory Id="ProgramFilesFolder">
-                  <Directory Id="INSTALLFOLDER" Name="Unicorn Game" />
-                </Directory>
-              </Directory>
+              <StandardDirectory Id="ProgramFilesFolder">
+                <Directory Id="INSTALLFOLDER" Name="UnicornGame" />
+              </StandardDirectory>
             </Fragment>
             <Fragment>
               <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
