@@ -6,10 +6,8 @@ on:
       - 'v*'
 
 jobs:
-  build-windows:
+  export-game:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -38,12 +36,30 @@ jobs:
           test -f build/windows/UnicornGame.exe
           test -f build/windows/UnicornGame.pck
 
+      - name: Upload game files
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-game-files
+          path: build/windows/
+
+  build-msi:
+    needs: export-game
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download game files
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-game-files
+          path: build/windows/
+
       - name: Install WiX Toolset
-        run: |
-          dotnet tool install --global wix
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+        run: dotnet tool install --global wix
 
       - name: Create WiX Product File
+        shell: bash
         run: |
           cat > build/windows/Product.wxs << 'EOF'
           <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
@@ -74,6 +90,7 @@ jobs:
           EOF
 
       - name: Build MSI Installer
+        shell: bash
         run: |
           cd build/windows
           wix build -o UnicornGame.msi Product.wxs
