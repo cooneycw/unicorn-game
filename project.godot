@@ -5,29 +5,6 @@
 
 config_version=5
 
-_global_script_classes=[ {
-"base": "Node",
-"class": "GameManager",
-"language": "GDScript",
-"path": "res://scripts/GameManager.gd"
-}, {
-"base": "Node3D",
-"class": "Pet",
-"language": "GDScript",
-"path": "res://scripts/Pet.gd"
-}, {
-"base": "Node",
-"class": "PetManager",
-"language": "GDScript",
-"path": "res://scripts/PetManager.gd"
-} ]
-
-_global_script_class_icons={
-"GameManager": "",
-"Pet": "",
-"PetManager": ""
-}
-
 [application]
 
 config/name="Unicorn Game"
