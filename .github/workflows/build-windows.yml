@@ -21,10 +21,25 @@ jobs:
           Expand-Archive -Path godot.zip -DestinationPath .
           Rename-Item "Godot_v3.5.3-stable_win64.exe" godot.exe
 
-      - name: Export for Windows
+      - name: Install Godot Export Templates
+        run: |
+          $url = "https://github.com/godotengine/godot/releases/download/3.5.3-stable/Godot_v3.5.3-stable_export_templates.tpz"
+          Invoke-WebRequest -Uri $url -OutFile export_templates.tpz
+          $templateDir = "$env:APPDATA\Godot\templates\3.5.3.stable"
+          New-Item -ItemType Directory -Force -Path $templateDir
+          Expand-Archive -Path export_templates.tpz -DestinationPath "$env:TEMP\godot_templates"
+          Copy-Item -Recurse "$env:TEMP\godot_templates\templates\*" $templateDir
+
+      - name: Import Project Assets
         run: |
           mkdir -p build/windows
-          .\godot.exe --path . --export "Windows Desktop" "build/windows/UnicornGame.exe"
+          .\godot.exe --no-window --path . --editor --quit
+        continue-on-error: true
+
+      - name: Export for Windows
+        run: |
+          .\godot.exe --no-window --path . --export "Windows Desktop" "build/windows/UnicornGame.exe"
+          if (-not (Test-Path "build/windows/UnicornGame.exe")) { exit 1 }
 
       - name: Install WiX Toolset
         run: |

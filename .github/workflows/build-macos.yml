@@ -19,11 +19,23 @@ jobs:
           curl -L -o godot.zip "https://github.com/godotengine/godot/releases/download/3.5.3-stable/Godot_v3.5.3-stable_osx.universal.zip"
           unzip godot.zip
 
+      - name: Install Godot Export Templates
+        run: |
+          curl -L -o export_templates.tpz "https://github.com/godotengine/godot/releases/download/3.5.3-stable/Godot_v3.5.3-stable_export_templates.tpz"
+          mkdir -p ~/Library/Application\ Support/Godot/templates/3.5.3.stable
+          unzip -o export_templates.tpz -d /tmp/godot_templates
+          cp /tmp/godot_templates/templates/* ~/Library/Application\ Support/Godot/templates/3.5.3.stable/
+
+      - name: Import Project Assets
+        run: |
+          chmod +x Godot.app/Contents/MacOS/Godot
+          ./Godot.app/Contents/MacOS/Godot --no-window --path . --editor --quit || true
+
       - name: Export for macOS
         run: |
           mkdir -p build/macos
-          chmod +x Godot.app/Contents/MacOS/Godot
-          ./Godot.app/Contents/MacOS/Godot --path . --export "Mac OSX" "build/macos/UnicornGame.zip"
+          ./Godot.app/Contents/MacOS/Godot --no-window --path . --export "Mac OSX" "build/macos/UnicornGame.zip"
+          test -f build/macos/UnicornGame.zip
 
       - name: Create DMG
         run: |
