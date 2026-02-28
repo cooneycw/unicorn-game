@@ -8,9 +8,11 @@ on:
 jobs:
   build-macos:
     runs-on: macos-latest
+    permissions:
+      contents: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Download Godot
         run: |
@@ -34,7 +36,7 @@ jobs:
           hdiutil create -volname "Unicorn Game" -srcfolder UnicornGame-DMG -ov -format UDZO UnicornGame.dmg
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-installer
           path: build/macos/UnicornGame.dmg

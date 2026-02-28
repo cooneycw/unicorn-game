@@ -2,6 +2,15 @@
 
 A simple 3D unicorn pet game for kids, built with Godot Engine.
 
+## Download
+
+| Platform | Installer |
+|----------|-----------|
+| Windows  | [UnicornGame.msi](https://github.com/cooneycw/unicorn-game/releases/latest/download/UnicornGame.msi) |
+| macOS    | [UnicornGame.dmg](https://github.com/cooneycw/unicorn-game/releases/latest/download/UnicornGame.dmg) |
+
+> Installers are built automatically when a new version tag is pushed. See [all releases](https://github.com/cooneycw/unicorn-game/releases).
+
 ## Game Features
 
 - **Three Islands**: Explore different magical islands
