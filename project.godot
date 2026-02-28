@@ -18,6 +18,7 @@ SaveManager="*res://scenes/SaveManager.tscn"
 AchievementManager="*res://scenes/AchievementManager.tscn"
 GameManager="*res://scenes/GameManager.tscn"
 AudioManager="*res://scenes/AudioManager.tscn"
+TaskBar="*res://scenes/TaskBar.tscn"
 
 [debug]
 

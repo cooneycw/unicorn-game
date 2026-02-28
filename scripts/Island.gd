@@ -14,9 +14,9 @@ var _pet_list_label: Label
 var _instructions_label: Label
 var _feedback_timer: float = 0.0
 
-# Action cooldown to prevent exploits (e.g. holding P+R)
+# Action cooldown to prevent exploits (e.g. holding P+R or rapid tapping)
 var _action_cooldown: float = 0.0
-const ACTION_COOLDOWN_TIME: float = 0.5  # seconds between actions
+const ACTION_COOLDOWN_TIME: float = 2.0  # seconds between actions
 
 # Pet renaming mode
 var _renaming: bool = false
@@ -286,61 +286,66 @@ func _create_ui():
 	ui.name = "UI"
 	add_child(ui)
 
-	# Title
+	# Main vertical layout — no more overlapping absolute positions
+	var vbox = VBoxContainer.new()
+	vbox.position = Vector2(10, 10)
+	vbox.size = Vector2(500, 600)
+	ui.add_child(vbox)
+
+	# Title row with coins
+	var title_row = HBoxContainer.new()
+	vbox.add_child(title_row)
+
 	var title = Label.new()
 	title.text = "ISLAND"
-	title.position = Vector2(10, 10)
 	title.add_theme_font_size_override("font_size", 22)
-	ui.add_child(title)
+	title_row.add_child(title)
 
-	# Coins display
+	var spacer = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.add_child(spacer)
+
 	_coins_label = Label.new()
 	_coins_label.text = "Coins: %d" % game_manager.coins
-	_coins_label.position = Vector2(10, 35)
 	_coins_label.add_theme_font_size_override("font_size", 16)
 	_coins_label.add_theme_color_override("font_color", Color.YELLOW)
-	ui.add_child(_coins_label)
+	title_row.add_child(_coins_label)
 
-	# Instructions
+	# Instructions — split into two lines so they don't overflow
 	_instructions_label = Label.new()
-	_instructions_label.text = "WASD: move | UP/DOWN: select | F: feed | P: play | R: rest | E: egg | X: rename | Ctrl+S: save | ESC: back"
-	_instructions_label.position = Vector2(10, 55)
+	_instructions_label.text = "WASD: walk | UP/DOWN: select pet | F: feed | P: play | R: rest\nE: collect egg | X: rename | Ctrl+S: save | ESC: back"
 	_instructions_label.add_theme_font_size_override("font_size", 11)
-	ui.add_child(_instructions_label)
+	vbox.add_child(_instructions_label)
 
-	# Rename mode label (hidden by default)
+	vbox.add_child(HSeparator.new())
+
+	# Pet list
+	_pet_list_label = Label.new()
+	_pet_list_label.add_theme_font_size_override("font_size", 13)
+	vbox.add_child(_pet_list_label)
+
+	vbox.add_child(HSeparator.new())
+
+	# Stats for selected pet
+	_stats_label = Label.new()
+	_stats_label.add_theme_font_size_override("font_size", 13)
+	vbox.add_child(_stats_label)
+
+	vbox.add_child(HSeparator.new())
+
+	# Feedback message
+	_feedback_label = Label.new()
+	_feedback_label.add_theme_font_size_override("font_size", 15)
+	_feedback_label.add_theme_color_override("font_color", Color.GOLD)
+	vbox.add_child(_feedback_label)
+
+	# Rename mode label (centered, hidden by default)
 	_rename_label = Label.new()
 	_rename_label.position = Vector2(200, 300)
 	_rename_label.add_theme_font_size_override("font_size", 22)
 	_rename_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
 	_rename_label.visible = false
 	ui.add_child(_rename_label)
-
-	# Pet list (dynamic position based on pet count)
-	_pet_list_label = Label.new()
-	_pet_list_label.position = Vector2(10, 75)
-	_pet_list_label.add_theme_font_size_override("font_size", 13)
-	ui.add_child(_pet_list_label)
-
-	# Stats for selected pet (position will be calculated dynamically)
-	_stats_label = Label.new()
-	_stats_label.position = Vector2(10, 200)
-	_stats_label.add_theme_font_size_override("font_size", 13)
-	ui.add_child(_stats_label)
-
-	# Feedback message (position will be calculated dynamically)
-	_feedback_label = Label.new()
-	_feedback_label.position = Vector2(10, 360)
-	_feedback_label.add_theme_font_size_override("font_size", 15)
-	_feedback_label.add_theme_color_override("font_color", Color.GOLD)
-	ui.add_child(_feedback_label)
-
-func _reposition_ui():
-	# Dynamically position stats and feedback based on pet list height
-	var pet_count = pet_ids.size()
-	var pet_list_bottom = 75 + (pet_count * 18) + 8
-	_stats_label.position.y = pet_list_bottom
-	_feedback_label.position.y = pet_list_bottom + 120
 
 func _highlight_selected():
 	if pet_ids.size() == 0:
@@ -354,7 +359,6 @@ func _highlight_selected():
 		var prefix = "> " if i == selected_pet_index else "  "
 		lines += "%s%s Lv%d (%s) %s\n" % [prefix, info["name"], level, info["type"], mood]
 	_pet_list_label.text = lines
-	_reposition_ui()
 
 func _update_stats_display():
 	if pet_ids.size() == 0:
@@ -644,6 +648,11 @@ func _cancel_rename():
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
+		# Ignore key repeat (echo) for action keys — prevents hold-to-spam exploit
+		var is_action_key = event.keycode in [KEY_F, KEY_P, KEY_R, KEY_E]
+		if is_action_key and event.is_echo():
+			return
+
 		# Rename mode input handling
 		if _renaming:
 			if event.keycode == KEY_ESCAPE:
