@@ -62,6 +62,7 @@ const LEVEL_NAMES: Array = [
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
+	game_manager.pending_game = "res://scenes/MathGame.tscn"
 
 	_level = game_manager.get_game_level("math")
 
@@ -329,6 +330,16 @@ func _end_game():
 		result_text += "\n\nLEVEL UP! Now Level %d: %s" % [_level, LEVEL_NAMES[_level]]
 	elif _correct_count < ADVANCE_THRESHOLD:
 		result_text += "\n\nNeed %d correct to advance (got %d)" % [ADVANCE_THRESHOLD, _correct_count]
+
+	# Award egg for completing the game
+	var egg_got = game_manager.collect_egg()
+	if egg_got:
+		result_text += "\n+1 Egg!"
+	else:
+		result_text += "\nEgg inventory full!"
+
+	# Clear pending game — player completed it
+	game_manager.pending_game = ""
 
 	result_text += "\n\nPress ESC to return to Hub"
 	_result_label.text = result_text

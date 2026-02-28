@@ -27,6 +27,12 @@ var _welcome_message: String = ""
 var egg_inventory: Array = []  # Array of { "time_remaining": float, "type": String }
 const MAX_EGGS: int = 3
 
+# Mini-game persistence — forces return to same game if player ESCs out
+var pending_game: String = ""
+
+# Pet inspection — transient, not saved
+var inspecting_pet_id: int = -1
+
 # Per-game level progression (auto-advance, kids don't choose)
 var game_levels: Dictionary = {
 	"math": 1,
@@ -69,7 +75,7 @@ const NAME_SUFFIXES: Array = ["whisper", "beam", "hooves", "mane", "spark", "shi
 const COLOR_VARIANTS = {
 	"unicorn": [Color.WHITE, Color(1.0, 0.75, 0.8), Color(0.68, 0.85, 1.0), Color(1.0, 0.84, 0.0)],
 	"pegasus": [Color.LIGHT_GRAY, Color(0.75, 0.75, 0.75), Color(0.53, 0.81, 0.92), Color(0.73, 0.56, 0.87)],
-	"dragon": [Color.RED, Color(0.0, 0.75, 0.0), Color(0.4, 0.0, 0.6), Color(1.0, 0.5, 0.0)],
+	"dragon": [Color(0.0, 0.6, 0.0), Color(0.0, 0.75, 0.0), Color(0.4, 0.0, 0.6), Color(1.0, 0.5, 0.0)],
 	"alicorn": [Color(0.6, 0.2, 0.8), Color(0.1, 0.1, 0.7), Color.WHITE],
 	"dogocorn": [Color(0.72, 0.53, 0.34), Color(0.95, 0.87, 0.73), Color(0.3, 0.3, 0.3), Color(1.0, 0.85, 0.6)],
 	"catocorn": [Color(0.95, 0.6, 0.2), Color(0.2, 0.2, 0.2), Color(0.85, 0.85, 0.85), Color(0.75, 0.55, 0.35)],
@@ -96,7 +102,11 @@ func _load_saved_data():
 
 	var data = save_manager.load_game()
 	if data.is_empty():
-		return
+		# Fallback: try importing pets from old CSV export
+		data = save_manager.import_pets_from_csv()
+		if data.is_empty():
+			return
+		print("Imported pets from CSV backup")
 
 	# Restore state
 	coins = data.get("coins", 50)
@@ -138,6 +148,9 @@ func _load_saved_data():
 	var saved_levels = data.get("game_levels", {})
 	for key in saved_levels.keys():
 		game_levels[key] = int(saved_levels[key])
+
+	# Restore pending mini-game (force return to same game on ESC)
+	pending_game = str(data.get("pending_game", ""))
 
 	# Restore achievements
 	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")

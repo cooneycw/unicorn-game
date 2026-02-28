@@ -51,6 +51,7 @@ const LEVEL_NAMES: Array = [
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
+	game_manager.pending_game = "res://scenes/SudokuGame.tscn"
 
 	_level = game_manager.get_game_level("sudoku")
 
@@ -315,7 +316,14 @@ func _puzzle_complete():
 			leveled_up = true
 			_level = new_level
 
-	var msg = "SOLVED! +%d coins!" % reward
+	# Award egg for completing the puzzle
+	var egg_got = game_manager.collect_egg()
+	var egg_msg = " +1 Egg!" if egg_got else " Egg inventory full!"
+
+	# Clear pending game — player completed it
+	game_manager.pending_game = ""
+
+	var msg = "SOLVED! +%d coins!%s" % [reward, egg_msg]
 	if leveled_up:
 		msg += " LEVEL UP! Now Level %d: %s" % [_level, LEVEL_NAMES[_level]]
 	elif _hints_used > 0:
