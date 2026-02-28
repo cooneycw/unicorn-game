@@ -26,8 +26,9 @@ func _ready():
 
 	# Add a simple horn (cone)
 	var horn = MeshInstance3D.new()
-	var cone_mesh = ConeMesh.new()
-	cone_mesh.radius = 0.1
+	var cone_mesh = CylinderMesh.new()
+	cone_mesh.top_radius = 0.0
+	cone_mesh.bottom_radius = 0.1
 	cone_mesh.height = 0.5
 	horn.mesh = cone_mesh
 	horn.position.y = 0.7
