@@ -28,11 +28,15 @@ jobs:
           unzip -o export_templates.tpz -d /tmp/godot_templates
           cp /tmp/godot_templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
 
+      - name: Import Godot Project
+        run: ./godot --headless --path . --import
+
       - name: Export for Windows
         run: |
           mkdir -p build/windows
-          ./godot --headless --export-release "Windows Desktop" build/windows/UnicornGame.exe
+          ./godot --headless --path . --export-release "Windows Desktop" build/windows/UnicornGame.exe
           test -f build/windows/UnicornGame.exe
+          test -f build/windows/UnicornGame.pck
 
       - name: Install WiX Toolset
         run: |
@@ -60,6 +64,9 @@ jobs:
               <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
                 <Component>
                   <File Source="UnicornGame.exe" />
+                </Component>
+                <Component>
+                  <File Source="UnicornGame.pck" />
                 </Component>
               </ComponentGroup>
             </Fragment>
