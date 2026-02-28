@@ -1,14 +1,96 @@
-<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sky background -->
+  <rect width="128" height="128" rx="16" fill="#7B68EE"/>
+
+  <!-- Stars -->
+  <circle cx="15" cy="18" r="2" fill="#FFD700" opacity="0.8"/>
+  <circle cx="108" cy="12" r="1.5" fill="#FFD700" opacity="0.7"/>
+  <circle cx="45" cy="8" r="1.5" fill="#FFD700" opacity="0.9"/>
+  <circle cx="90" cy="22" r="2" fill="#FFD700" opacity="0.6"/>
+  <circle cx="20" cy="45" r="1" fill="#FFD700" opacity="0.7"/>
+  <circle cx="115" cy="40" r="1.5" fill="#FFD700" opacity="0.8"/>
+
+  <!-- Unicorn body -->
+  <ellipse cx="58" cy="78" rx="28" ry="18" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1"/>
+
+  <!-- Unicorn neck -->
+  <path d="M 38 72 Q 30 55 34 42" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1"/>
+  <ellipse cx="36" cy="57" rx="10" ry="18" fill="#FFFFFF"/>
+
   <!-- Unicorn head -->
-  <circle cx="32" cy="32" r="20" fill="#ffffff" stroke="#000" stroke-width="2"/>
+  <ellipse cx="32" cy="40" rx="12" ry="10" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1"/>
 
-  <!-- Horn -->
-  <polygon points="32,10 28,25 36,25" fill="#ffd700" stroke="#000" stroke-width="1"/>
+  <!-- Unicorn horn -->
+  <polygon points="30,30 28,15 34,30" fill="#FFD700" stroke="#DAA520" stroke-width="0.5"/>
+  <!-- Horn spiral lines -->
+  <line x1="29.5" y1="27" x2="32.5" y2="27" stroke="#DAA520" stroke-width="0.5"/>
+  <line x1="29" y1="24" x2="33" y2="24" stroke="#DAA520" stroke-width="0.5"/>
+  <line x1="28.5" y1="21" x2="32" y2="21" stroke="#DAA520" stroke-width="0.5"/>
 
-  <!-- Eyes -->
-  <circle cx="26" cy="28" r="2" fill="#000"/>
-  <circle cx="38" cy="28" r="2" fill="#000"/>
+  <!-- Unicorn eye -->
+  <circle cx="28" cy="38" r="2.5" fill="#4B0082"/>
+  <circle cx="27.5" cy="37.5" r="0.8" fill="#FFFFFF"/>
 
-  <!-- Mane -->
-  <path d="M 32 10 Q 20 15 18 25" stroke="#ff69b4" stroke-width="3" fill="none"/>
+  <!-- Unicorn ear -->
+  <polygon points="36,32 34,24 40,30" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="0.5"/>
+
+  <!-- Unicorn mane (flowing pink) -->
+  <path d="M 34 30 Q 42 28 40 38 Q 46 32 44 42 Q 50 36 48 48 Q 52 42 50 52" stroke="#FF69B4" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 36 32 Q 44 30 42 40 Q 48 34 46 44" stroke="#FF1493" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Unicorn legs (front) -->
+  <rect x="38" y="90" width="5" height="20" rx="2" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="0.5"/>
+  <rect x="48" y="92" width="5" height="18" rx="2" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="0.5"/>
+  <!-- Unicorn legs (back) -->
+  <rect x="65" y="90" width="5" height="20" rx="2" fill="#F8F8F8" stroke="#E0E0E0" stroke-width="0.5"/>
+  <rect x="75" y="92" width="5" height="18" rx="2" fill="#F8F8F8" stroke="#E0E0E0" stroke-width="0.5"/>
+
+  <!-- Hooves -->
+  <rect x="37" y="108" width="7" height="4" rx="2" fill="#FFD700"/>
+  <rect x="47" y="108" width="7" height="4" rx="2" fill="#FFD700"/>
+  <rect x="64" y="108" width="7" height="4" rx="2" fill="#FFD700"/>
+  <rect x="74" y="108" width="7" height="4" rx="2" fill="#FFD700"/>
+
+  <!-- Unicorn tail -->
+  <path d="M 85 72 Q 100 60 95 75 Q 105 65 100 80 Q 108 72 102 85" stroke="#FF69B4" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 86 74 Q 98 64 96 77 Q 104 68 100 82" stroke="#FF1493" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Princess body/dress -->
+  <path d="M 50 58 L 44 78 L 68 78 Z" fill="#9370DB"/>
+  <path d="M 50 62 L 46 78 L 66 78 Z" fill="#8A2BE2"/>
+
+  <!-- Princess arms -->
+  <line x1="48" y1="62" x2="40" y2="55" stroke="#FFDAB9" stroke-width="3" stroke-linecap="round"/>
+  <line x1="56" y1="62" x2="62" y2="70" stroke="#FFDAB9" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Princess head -->
+  <circle cx="52" cy="52" r="7" fill="#FFDAB9"/>
+
+  <!-- Princess hair -->
+  <path d="M 45 50 Q 44 42 52 40 Q 60 42 59 50" fill="#8B4513"/>
+  <path d="M 45 50 Q 42 56 44 62" stroke="#8B4513" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 59 50 Q 62 56 60 62" stroke="#8B4513" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Princess crown/tiara -->
+  <polygon points="46,44 48,38 50,43 52,36 54,43 56,38 58,44" fill="#FFD700" stroke="#DAA520" stroke-width="0.5"/>
+  <!-- Crown jewel -->
+  <circle cx="52" cy="39" r="1.5" fill="#FF69B4"/>
+
+  <!-- Princess eyes -->
+  <circle cx="50" cy="52" r="1" fill="#4B0082"/>
+  <circle cx="55" cy="52" r="1" fill="#4B0082"/>
+
+  <!-- Princess smile -->
+  <path d="M 50 55 Q 52.5 57 55 55" stroke="#CC6666" stroke-width="0.8" fill="none"/>
+
+  <!-- Sparkle effects around unicorn -->
+  <g fill="#FFD700" opacity="0.9">
+    <polygon points="18,70 20,66 22,70 20,74" transform="scale(0.5) translate(16,90)"/>
+    <polygon points="18,70 20,66 22,70 20,74" transform="scale(0.4) translate(240,80)"/>
+    <polygon points="18,70 20,66 22,70 20,74" transform="scale(0.5) translate(180,40)"/>
+  </g>
+
+  <!-- Ground/cloud the unicorn stands on -->
+  <ellipse cx="60" cy="115" rx="45" ry="8" fill="#E6E6FA" opacity="0.6"/>
+  <ellipse cx="55" cy="118" rx="35" ry="6" fill="#D8BFD8" opacity="0.4"/>
 </svg>
