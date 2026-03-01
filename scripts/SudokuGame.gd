@@ -1,6 +1,6 @@
 extends Node2D
 
-# Sudoku — 6 auto-advancing levels
+# Logic Grid — 6 auto-advancing levels
 # L1-3: 3x3 Latin square (5/4/3 givens)
 # L4-6: 4x4 Latin square (10/8/6 givens)
 # Advance: Complete puzzle without using any hints
@@ -53,7 +53,7 @@ func _ready():
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
 	game_manager.pending_game = "res://scenes/SudokuGame.tscn"
 
-	_level = game_manager.get_game_level("sudoku")
+	_level = game_manager.get_game_level("logic_grid")
 
 	var viewport_size = get_viewport().get_visible_rect().size
 	if viewport_size.x > 0:
@@ -73,7 +73,7 @@ func _build_ui():
 
 	# Title
 	var title = Label.new()
-	title.text = "SUDOKU PUZZLE"
+	title.text = "LOGIC GRID"
 	title.position = Vector2(15, 10)
 	title.add_theme_font_size_override("font_size", 26)
 	title.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
@@ -308,13 +308,13 @@ func _puzzle_complete():
 
 	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
 	if achievement_mgr:
-		achievement_mgr.check_sudoku_complete(_puzzles_completed, _hints_used)
+		achievement_mgr.check_logic_grid_complete(_puzzles_completed, _hints_used)
 		achievement_mgr.check_all()
 
 	# Auto-advance if no hints used
 	var leveled_up = false
 	if _hints_used == 0:
-		var new_level = game_manager.advance_game_level("sudoku")
+		var new_level = game_manager.advance_game_level("logic_grid")
 		if new_level > _level:
 			leveled_up = true
 			_level = new_level

@@ -17,8 +17,8 @@ const ACHIEVEMENTS = {
 	"animal_ark": {"name": "Animal Ark", "desc": "Own one of every pet type", "reward": 100},
 	"koala_friend": {"name": "Koala Friend", "desc": "Have a pet with a koala rider", "reward": 20},
 	"math_whiz": {"name": "Math Whiz", "desc": "Get 20 correct in Math Challenge", "reward": 40},
-	"puzzle_solver": {"name": "Puzzle Solver", "desc": "Complete 5 Sudoku puzzles", "reward": 30},
-	"no_hints": {"name": "No Hints Needed", "desc": "Complete a Sudoku without hints", "reward": 20},
+	"puzzle_solver": {"name": "Puzzle Solver", "desc": "Complete 5 Logic Grid puzzles", "reward": 30},
+	"no_hints": {"name": "No Hints Needed", "desc": "Complete a Logic Grid without hints", "reward": 20},
 	"spelling_bee": {"name": "Spelling Bee", "desc": "Get 15 correct in Spelling Game", "reward": 35},
 	"word_master": {"name": "Word Master", "desc": "Get 10 correct on Hard spelling", "reward": 50},
 	"kind_heart": {"name": "Kind Heart", "desc": "Adopt your first pet to a loving family", "reward": 25},
@@ -132,7 +132,7 @@ func check_math_score(correct_count: int):
 	if correct_count >= 20:
 		_try_unlock("math_whiz")
 
-func check_sudoku_complete(puzzles_completed: int, hints_used: int):
+func check_logic_grid_complete(puzzles_completed: int, hints_used: int):
 	if puzzles_completed >= 5:
 		_try_unlock("puzzle_solver")
 	if hints_used == 0:

@@ -44,7 +44,7 @@ signal kindness_stars_changed(new_amount: int)
 var game_levels: Dictionary = {
 	"math": 1,
 	"spelling": 1,
-	"sudoku": 1,
+	"logic_grid": 1,
 	"treat_catch": 1,
 	"memory": 1,
 }
@@ -52,7 +52,7 @@ var game_levels: Dictionary = {
 const GAME_MAX_LEVELS: Dictionary = {
 	"math": 10,
 	"spelling": 10,
-	"sudoku": 6,
+	"logic_grid": 6,
 	"treat_catch": 5,
 	"memory": 5,
 }
@@ -161,7 +161,9 @@ func _load_saved_data():
 	# Restore game levels
 	var saved_levels = data.get("game_levels", {})
 	for key in saved_levels.keys():
-		game_levels[key] = int(saved_levels[key])
+		# Migrate old "sudoku" key to "logic_grid"
+		var mapped_key = "logic_grid" if key == "sudoku" else key
+		game_levels[mapped_key] = int(saved_levels[key])
 
 	# Restore pending mini-game (force return to same game on ESC)
 	pending_game = str(data.get("pending_game", ""))
