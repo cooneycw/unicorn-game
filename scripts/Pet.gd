@@ -27,6 +27,40 @@ var _ear_r: MeshInstance3D
 var _happy_particles: GPUParticles3D
 var _sad_particles: GPUParticles3D
 
+# Dialogue bubbles
+var _bubble_label: Label3D
+var _bubble_cooldown: float = 0.0
+const BUBBLE_COOLDOWN_TIME: float = 30.0
+const BUBBLE_DISPLAY_TIME: float = 4.0
+
+const BUBBLE_HUNGRY: Array = [
+	"I'm hungry!",
+	"Feed me please!",
+	"My tummy is rumbling...",
+]
+const BUBBLE_TIRED: Array = [
+	"I'm sleepy... zzz",
+	"Need a nap...",
+	"So tired...",
+]
+const BUBBLE_HAPPY: Array = [
+	"Let's play!",
+	"I love you!",
+	"This is so fun!",
+	"Yay!",
+]
+const BUBBLE_SAD: Array = [
+	"I miss you...",
+	"Play with me?",
+	"I'm lonely...",
+]
+const BUBBLE_CONTENT: Array = [
+	"Nice weather!",
+	"What's that?",
+	"La la la~",
+	"Can we explore?",
+]
+
 # Wandering
 var enable_wandering: bool = false
 var _wander_target: Vector3
@@ -58,6 +92,9 @@ func _ready():
 
 	# Randomize bob phase so pets don't all bob in sync
 	_bob_time = randf() * TAU
+
+	# Randomize initial bubble cooldown so pets don't all talk at once
+	_bubble_cooldown = randf_range(5.0, 25.0)
 
 func _build_body():
 	_body_mesh = MeshInstance3D.new()
@@ -825,11 +862,57 @@ func _process(delta: float):
 	_happy_particles.emitting = mood == "happy"
 	_sad_particles.emitting = mood == "sad" or mood == "hungry"
 
+	# Dialogue bubbles
+	_bubble_cooldown -= delta
+	if _bubble_cooldown <= 0 and (_bubble_label == null or not _bubble_label.visible):
+		_show_bubble(mood)
+		_bubble_cooldown = BUBBLE_COOLDOWN_TIME + randf_range(-5.0, 5.0)
+
 	# Wandering behavior
 	if enable_wandering and mood != "resting":
 		_process_wander(delta)
 
 	_update_label()
+
+func _show_bubble(mood: String):
+	var messages: Array
+	match mood:
+		"hungry":
+			messages = BUBBLE_HUNGRY
+		"resting":
+			messages = BUBBLE_TIRED
+		"happy":
+			messages = BUBBLE_HAPPY
+		"sad":
+			messages = BUBBLE_SAD
+		_:
+			# Content pets have a random chance to stay quiet
+			if randf() < 0.4:
+				return
+			messages = BUBBLE_CONTENT
+
+	var msg = messages[randi() % messages.size()]
+
+	# Create or reuse bubble label
+	if _bubble_label == null:
+		_bubble_label = Label3D.new()
+		_bubble_label.font_size = 32
+		_bubble_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_bubble_label.no_depth_test = true
+		_bubble_label.position.y = 1.5
+		_bubble_label.outline_size = 8
+		_bubble_label.modulate = Color(1, 1, 1, 0)
+		add_child(_bubble_label)
+
+	_bubble_label.text = msg
+	_bubble_label.visible = true
+
+	# Fade in, hold, fade out
+	var tween = create_tween()
+	tween.tween_property(_bubble_label, "modulate:a", 1.0, 0.3)
+	tween.tween_interval(BUBBLE_DISPLAY_TIME)
+	tween.tween_property(_bubble_label, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(func(): _bubble_label.visible = false)
 
 func _process_wander(delta: float):
 	if _wander_pause > 0:
