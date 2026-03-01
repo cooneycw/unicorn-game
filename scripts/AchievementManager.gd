@@ -21,6 +21,8 @@ const ACHIEVEMENTS = {
 	"no_hints": {"name": "No Hints Needed", "desc": "Complete a Sudoku without hints", "reward": 20},
 	"spelling_bee": {"name": "Spelling Bee", "desc": "Get 15 correct in Spelling Game", "reward": 35},
 	"word_master": {"name": "Word Master", "desc": "Get 10 correct on Hard spelling", "reward": 50},
+	"kind_heart": {"name": "Kind Heart", "desc": "Adopt your first pet to a loving family", "reward": 25},
+	"adoption_hero": {"name": "Adoption Hero", "desc": "Find homes for 5 pets", "reward": 75},
 }
 
 var _unlocked: Array = []
@@ -141,6 +143,12 @@ func check_spelling_score(correct_count: int, was_hard: bool):
 		_try_unlock("spelling_bee")
 	if was_hard and correct_count >= 10:
 		_try_unlock("word_master")
+
+func check_adoption(total_adopted: int):
+	if total_adopted >= 1:
+		_try_unlock("kind_heart")
+	if total_adopted >= 5:
+		_try_unlock("adoption_hero")
 
 func _try_unlock(achievement_id: String):
 	if achievement_id in _unlocked:
