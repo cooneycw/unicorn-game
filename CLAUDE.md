@@ -51,7 +51,7 @@ unicorn, pegasus, dragon, alicorn, dogicorn, caticorn
 | `MiniGame.tscn` | `MiniGame.gd` | Treat-catching (5 levels, auto-advance on score 10+) |
 | `MemoryGame.tscn` | `MemoryGame.gd` | Card-matching (5 levels: 2x3 to 4x6, advance on completion) |
 | `MathGame.tscn` | `MathGame.gd` | Math challenge (10 levels: add/sub/mul/div/mixed, advance on 8+ correct) |
-| `SudokuGame.tscn` | `SudokuGame.gd` | Sudoku (6 levels: 3x3 and 4x4, advance without hints) |
+| `SudokuGame.tscn` | `SudokuGame.gd` | Logic Grid (6 levels: 3x3 and 4x4 Latin squares, advance without hints) |
 | `SpellingGame.tscn` | `SpellingGame.gd` | Spelling bee (10 levels: tiny to expert words, advance on 6+ correct) |
 | `PetProfile.tscn` | `PetProfile.gd` | Pet inspect screen with 3D model, stats, rename |
 | `AdoptionCenter.tscn` | `AdoptionCenter.gd` | Adopt pets to families, Friends Book, postcards |
