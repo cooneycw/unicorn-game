@@ -341,7 +341,7 @@ func _end_game():
 	# Clear pending game — player completed it
 	game_manager.pending_game = ""
 
-	result_text += "\n\nPress ESC to return to Hub"
+	result_text += "\n\nSPACE: play again | ESC: return to Hub"
 	_result_label.text = result_text
 	_result_label.visible = true
 
@@ -376,6 +376,8 @@ func _input(event):
 			return
 
 		if not _game_active:
+			if event.keycode == KEY_SPACE:
+				get_tree().reload_current_scene()
 			return
 
 		if event.keycode == KEY_UP:

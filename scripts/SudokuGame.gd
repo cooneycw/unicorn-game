@@ -111,10 +111,13 @@ func _build_ui():
 func _update_labels():
 	_level_label.text = "Level %d: %s" % [_level, LEVEL_NAMES[_level]]
 	_status_label.text = "Puzzles: %d | Coins: +%d | Hints: %d" % [_puzzles_completed, _coins_earned, _hints_used]
-	if _grid_size == 3:
-		_info_label.text = "Arrows: move | 1-3: place | Backspace: clear | H: hint | SPACE: next | ESC: back"
+	if _game_active:
+		if _grid_size == 3:
+			_info_label.text = "Arrows: move | 1-3: place | Backspace: clear | H: hint | ESC: back"
+		else:
+			_info_label.text = "Arrows: move | 1-4: place | Backspace: clear | H: hint | ESC: back"
 	else:
-		_info_label.text = "Arrows: move | 1-4: place | Backspace: clear | H: hint | SPACE: next | ESC: back"
+		_info_label.text = "SPACE: next puzzle | ESC: exit"
 
 func _get_level_config() -> Dictionary:
 	match _level:
