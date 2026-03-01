@@ -43,6 +43,7 @@ func save_game():
 		"kindness_stars": gm.kindness_stars,
 		"adopted_registry": gm.adopted_registry,
 		"postcards": gm.postcards,
+		"active_journeys": gm.active_journeys,
 	}
 
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)

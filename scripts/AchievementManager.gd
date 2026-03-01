@@ -23,6 +23,7 @@ const ACHIEVEMENTS = {
 	"word_master": {"name": "Word Master", "desc": "Get 10 correct on Hard spelling", "reward": 50},
 	"kind_heart": {"name": "Kind Heart", "desc": "Adopt your first pet to a loving family", "reward": 25},
 	"adoption_hero": {"name": "Adoption Hero", "desc": "Find homes for 5 pets", "reward": 75},
+	"first_explorer": {"name": "First Explorer", "desc": "Send a pet on an adventure journey", "reward": 25},
 }
 
 var _unlocked: Array = []
@@ -149,6 +150,9 @@ func check_adoption(total_adopted: int):
 		_try_unlock("kind_heart")
 	if total_adopted >= 5:
 		_try_unlock("adoption_hero")
+
+func check_journey_sent():
+	_try_unlock("first_explorer")
 
 func _try_unlock(achievement_id: String):
 	if achievement_id in _unlocked:
