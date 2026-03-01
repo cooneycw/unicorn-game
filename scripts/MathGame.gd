@@ -20,7 +20,6 @@ var _game_active: bool = false
 var _correct_count: int = 0
 var _wrong_count: int = 0
 var _coins_earned: int = 0
-var _active_pet_id: int = -1
 var _streak: int = 0
 var _level: int = 1
 
@@ -65,10 +64,6 @@ func _ready():
 	game_manager.pending_game = "res://scenes/MathGame.tscn"
 
 	_level = game_manager.get_game_level("math")
-
-	var all_pets = game_manager.get_all_pets()
-	if all_pets.size() > 0:
-		_active_pet_id = all_pets.keys()[0]
 
 	var viewport_size = get_viewport().get_visible_rect().size
 	if viewport_size.x > 0:
@@ -298,9 +293,10 @@ func _update_ui():
 func _end_game():
 	_game_active = false
 
-	if _active_pet_id >= 0 and _correct_count > 0:
-		game_manager.modify_stat(_active_pet_id, "happiness", _correct_count * 2)
-		game_manager.add_xp(_active_pet_id, _correct_count * 5)
+	if _correct_count > 0:
+		for pet_id in game_manager.get_all_pets().keys():
+			game_manager.modify_stat(pet_id, "happiness", _correct_count * 2)
+			game_manager.add_xp(pet_id, _correct_count * 5)
 
 	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
 	if achievement_mgr:
