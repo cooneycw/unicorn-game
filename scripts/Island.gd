@@ -47,10 +47,16 @@ var _sun_light: DirectionalLight3D
 var _day_time: float = 0.0  # 0-1 representing full day cycle
 var _clouds: Array = []
 
-# Camera (WASD walking)
+# Camera follows player character
 var _camera: Camera3D
-const CAMERA_SPEED: float = 8.0
 const CAMERA_BOUNDS: float = 14.0
+
+# Player character (girl)
+var _girl: Node3D
+const GIRL_SPEED: float = 5.0
+const GIRL_Y: float = -0.45  # ground level (ground plane at y=-1, girl feet on ground)
+const BUMP_RADIUS: float = 1.2
+const BUMP_FORCE: float = 3.0
 
 # Weather — Sun and Moon meshes
 var _sun_mesh: MeshInstance3D
@@ -110,10 +116,16 @@ func _create_island_environment():
 	_sun_light.light_color = Color(1.0, 0.95, 0.8)
 	add_child(_sun_light)
 
-	# Camera (player-controlled)
+	# Player character — girl on the ground
+	_girl = Node3D.new()
+	_girl.position = Vector3(0, GIRL_Y, 0)
+	_girl.name = "Girl"
+	_build_girl_model(_girl)
+	add_child(_girl)
+
+	# Camera follows girl from behind and above
 	_camera = Camera3D.new()
-	_camera.position = Vector3(0, 8, 15)
-	_camera.look_at(Vector3(0, 0, 0), Vector3.UP)
+	_update_camera_follow()
 	add_child(_camera)
 
 	# Sky background — light blue by default
@@ -283,6 +295,105 @@ func _create_rain_system():
 	_rain_particles.draw_pass_1 = drop_mesh
 
 	add_child(_rain_particles)
+
+func _build_girl_model(root: Node3D):
+	# Dress / body (cone shape — cute simple dress)
+	var dress = MeshInstance3D.new()
+	var dress_mesh = CylinderMesh.new()
+	dress_mesh.top_radius = 0.15
+	dress_mesh.bottom_radius = 0.35
+	dress_mesh.height = 0.6
+	dress.mesh = dress_mesh
+	dress.position.y = 0.3
+	var dress_mat = StandardMaterial3D.new()
+	dress_mat.albedo_color = Color(0.9, 0.4, 0.6)  # pink dress
+	dress.material_override = dress_mat
+	root.add_child(dress)
+
+	# Head
+	var head = MeshInstance3D.new()
+	var head_mesh = SphereMesh.new()
+	head_mesh.radius = 0.18
+	head_mesh.height = 0.34
+	head.mesh = head_mesh
+	head.position.y = 0.78
+	var head_mat = StandardMaterial3D.new()
+	head_mat.albedo_color = Color(1.0, 0.87, 0.75)  # skin tone
+	head.material_override = head_mat
+	root.add_child(head)
+
+	# Hair (back — longer)
+	var hair_back = MeshInstance3D.new()
+	var hair_mesh = SphereMesh.new()
+	hair_mesh.radius = 0.2
+	hair_mesh.height = 0.4
+	hair_back.mesh = hair_mesh
+	hair_back.position = Vector3(0, 0.75, 0.08)
+	hair_back.scale = Vector3(1.0, 1.2, 0.8)
+	var hair_mat = StandardMaterial3D.new()
+	hair_mat.albedo_color = Color(0.35, 0.2, 0.1)  # brown hair
+	hair_back.material_override = hair_mat
+	root.add_child(hair_back)
+
+	# Hair pigtails
+	for side in [-1.0, 1.0]:
+		var pigtail = MeshInstance3D.new()
+		var pt_mesh = SphereMesh.new()
+		pt_mesh.radius = 0.08
+		pt_mesh.height = 0.25
+		pigtail.mesh = pt_mesh
+		pigtail.position = Vector3(side * 0.18, 0.65, 0.05)
+		var pt_mat = StandardMaterial3D.new()
+		pt_mat.albedo_color = Color(0.35, 0.2, 0.1)
+		pigtail.material_override = pt_mat
+		root.add_child(pigtail)
+
+	# Eyes
+	for side in [-1.0, 1.0]:
+		var eye = MeshInstance3D.new()
+		var eye_mesh = SphereMesh.new()
+		eye_mesh.radius = 0.035
+		eye_mesh.height = 0.04
+		eye.mesh = eye_mesh
+		eye.position = Vector3(side * 0.07, 0.8, -0.16)
+		var eye_mat = StandardMaterial3D.new()
+		eye_mat.albedo_color = Color(0.2, 0.4, 0.7)  # blue eyes
+		eye.material_override = eye_mat
+		root.add_child(eye)
+
+	# Legs
+	for side in [-1.0, 1.0]:
+		var leg = MeshInstance3D.new()
+		var leg_mesh = CylinderMesh.new()
+		leg_mesh.top_radius = 0.05
+		leg_mesh.bottom_radius = 0.05
+		leg_mesh.height = 0.3
+		leg.mesh = leg_mesh
+		leg.position = Vector3(side * 0.1, -0.1, 0)
+		var leg_mat = StandardMaterial3D.new()
+		leg_mat.albedo_color = Color(1.0, 0.87, 0.75)
+		leg.material_override = leg_mat
+		root.add_child(leg)
+
+	# Shoes
+	for side in [-1.0, 1.0]:
+		var shoe = MeshInstance3D.new()
+		var shoe_mesh = SphereMesh.new()
+		shoe_mesh.radius = 0.06
+		shoe_mesh.height = 0.06
+		shoe.mesh = shoe_mesh
+		shoe.position = Vector3(side * 0.1, -0.25, -0.02)
+		var shoe_mat = StandardMaterial3D.new()
+		shoe_mat.albedo_color = Color(0.8, 0.2, 0.3)  # red shoes
+		shoe.material_override = shoe_mat
+		root.add_child(shoe)
+
+func _update_camera_follow():
+	if not _girl or not _camera:
+		return
+	# Third-person camera: behind and above the girl
+	_camera.position = _girl.position + Vector3(0, 5, 6)
+	_camera.look_at(_girl.position + Vector3(0, 0.5, 0), Vector3.UP)
 
 func _spawn_all_pets():
 	var all_pets = game_manager.get_all_pets()
@@ -603,7 +714,7 @@ func _process(delta: float):
 			if dir.length() > 0.01:
 				koala.rotation.y = lerp_angle(koala.rotation.y, atan2(dir.x, dir.z), delta * 3.0)
 
-	# WASD + Numpad + Arrow camera movement
+	# WASD + Numpad — move girl character
 	var move_dir = Vector3.ZERO
 	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_KP_8):
 		move_dir.z -= 1
@@ -616,13 +727,25 @@ func _process(delta: float):
 
 	if move_dir.length() > 0:
 		move_dir = move_dir.normalized()
-		_camera.position.x += move_dir.x * CAMERA_SPEED * delta
-		_camera.position.z += move_dir.z * CAMERA_SPEED * delta
-		_camera.position.x = clampf(_camera.position.x, -CAMERA_BOUNDS, CAMERA_BOUNDS)
-		_camera.position.z = clampf(_camera.position.z, -CAMERA_BOUNDS + 5, CAMERA_BOUNDS + 5)
-		# Look forward-down from camera position
-		var look_target = _camera.position + Vector3(0, -4, -8)
-		_camera.look_at(look_target, Vector3.UP)
+		_girl.position.x += move_dir.x * GIRL_SPEED * delta
+		_girl.position.z += move_dir.z * GIRL_SPEED * delta
+		_girl.position.x = clampf(_girl.position.x, -CAMERA_BOUNDS, CAMERA_BOUNDS)
+		_girl.position.z = clampf(_girl.position.z, -CAMERA_BOUNDS + 5, CAMERA_BOUNDS + 5)
+		_girl.position.y = GIRL_Y
+		# Face movement direction
+		var target_angle = atan2(move_dir.x, move_dir.z)
+		_girl.rotation.y = lerp_angle(_girl.rotation.y, target_angle, delta * 8.0)
+
+	# Camera follows girl
+	_update_camera_follow()
+
+	# Bump animals out of the way
+	for pet in pets_in_scene:
+		var dist = Vector2(_girl.position.x, _girl.position.z).distance_to(Vector2(pet.position.x, pet.position.z))
+		if dist < BUMP_RADIUS and dist > 0.01:
+			var push_dir = Vector3(pet.position.x - _girl.position.x, 0, pet.position.z - _girl.position.z).normalized()
+			pet.position.x += push_dir.x * BUMP_FORCE * delta
+			pet.position.z += push_dir.z * BUMP_FORCE * delta
 
 func _start_rain():
 	_is_raining = true
