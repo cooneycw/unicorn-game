@@ -37,7 +37,7 @@ Godot 4.3 / GDScript 3D pet simulation game. All visuals are procedurally genera
 
 ### Pet Types (6)
 
-unicorn, pegasus, dragon, alicorn, dogocorn, catocorn
+unicorn, pegasus, dragon, alicorn, dogicorn, caticorn
 
 ~20% of pets spawn with a koala rider.
 

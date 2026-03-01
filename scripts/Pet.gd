@@ -5,7 +5,7 @@ class_name Pet
 
 var pet_id: int
 var pet_name: String
-var pet_type: String  # "unicorn", "pegasus", "dragon", "alicorn", "dogocorn", "catocorn"
+var pet_type: String  # "unicorn", "pegasus", "dragon", "alicorn", "dogicorn", "caticorn"
 
 var _game_manager
 var _audio_manager
@@ -64,11 +64,11 @@ func _build_body():
 	var sphere_mesh = SphereMesh.new()
 
 	match pet_type:
-		"dogocorn":
+		"dogicorn":
 			sphere_mesh.radius = 0.5
 			sphere_mesh.height = 0.9
 			_body_mesh.scale = Vector3(1.1, 0.85, 1.3)  # stocky
-		"catocorn":
+		"caticorn":
 			sphere_mesh.radius = 0.4
 			sphere_mesh.height = 0.75
 			_body_mesh.scale = Vector3(0.9, 0.95, 1.4)  # sleek and long
@@ -90,11 +90,11 @@ func _build_head():
 	var head = SphereMesh.new()
 
 	match pet_type:
-		"dogocorn":
+		"dogicorn":
 			head.radius = 0.28
 			head.height = 0.55
 			_head_mesh.position = Vector3(0, 0.3, -0.4)
-		"catocorn":
+		"caticorn":
 			head.radius = 0.22
 			head.height = 0.44
 			_head_mesh.position = Vector3(0, 0.38, -0.38)
@@ -122,10 +122,10 @@ func _build_head():
 	var eye_z = -0.55
 	var eye_y = 0.38
 	match pet_type:
-		"dogocorn":
+		"dogicorn":
 			eye_z = -0.58
 			eye_y = 0.35
-		"catocorn":
+		"caticorn":
 			eye_z = -0.52
 			eye_y = 0.4
 
@@ -152,14 +152,14 @@ func _build_legs():
 
 	# Adjust leg positions for different body shapes
 	match pet_type:
-		"dogocorn":
+		"dogicorn":
 			leg_positions = [
 				Vector3(-0.25, -0.42, -0.25),
 				Vector3(0.25, -0.42, -0.25),
 				Vector3(-0.25, -0.42, 0.25),
 				Vector3(0.25, -0.42, 0.25),
 			]
-		"catocorn":
+		"caticorn":
 			leg_positions = [
 				Vector3(-0.18, -0.45, -0.25),
 				Vector3(0.18, -0.45, -0.25),
@@ -192,12 +192,12 @@ func _build_horn():
 	var cone_mesh = CylinderMesh.new()
 
 	match pet_type:
-		"dogocorn":
+		"dogicorn":
 			cone_mesh.top_radius = 0.0
 			cone_mesh.bottom_radius = 0.07
 			cone_mesh.height = 0.35
 			horn.position = Vector3(0, 0.55, -0.4)
-		"catocorn":
+		"caticorn":
 			cone_mesh.top_radius = 0.0
 			cone_mesh.bottom_radius = 0.06
 			cone_mesh.height = 0.3
@@ -241,9 +241,9 @@ func _build_type_features():
 			_build_alicorn_features()
 			_build_mane([Color(0.8, 0.6, 0.95)])
 			_build_equine_tail([Color(0.8, 0.6, 0.95)])
-		"dogocorn":
+		"dogicorn":
 			_build_dog_features()
-		"catocorn":
+		"caticorn":
 			_build_cat_features()
 
 func _build_mane(colors: Array):
@@ -599,67 +599,80 @@ func _build_cat_features():
 
 func _build_koala():
 	var koala_root = Node3D.new()
-	koala_root.position = Vector3(0, 0.45, 0.05)
+	koala_root.position = Vector3(0, 0.55, 0.05)
 	koala_root.name = "Koala"
 
-	# Body
+	# Body — larger and warm brown
 	var body = MeshInstance3D.new()
 	var body_mesh = SphereMesh.new()
-	body_mesh.radius = 0.12
-	body_mesh.height = 0.2
+	body_mesh.radius = 0.18
+	body_mesh.height = 0.3
 	body.mesh = body_mesh
 	var bmat = StandardMaterial3D.new()
-	bmat.albedo_color = Color(0.55, 0.55, 0.55)
+	bmat.albedo_color = Color(0.5, 0.4, 0.3)  # warm brown
 	body.material_override = bmat
 	koala_root.add_child(body)
 
-	# Head
+	# Head — lighter tan
 	var head = MeshInstance3D.new()
 	var head_mesh = SphereMesh.new()
-	head_mesh.radius = 0.09
-	head_mesh.height = 0.16
+	head_mesh.radius = 0.14
+	head_mesh.height = 0.24
 	head.mesh = head_mesh
-	head.position = Vector3(0, 0.18, -0.05)
+	head.position = Vector3(0, 0.25, -0.06)
 	var hmat = StandardMaterial3D.new()
-	hmat.albedo_color = Color(0.6, 0.6, 0.6)
+	hmat.albedo_color = Color(0.65, 0.55, 0.4)  # lighter tan
 	head.material_override = hmat
 	koala_root.add_child(head)
 
-	# Round fluffy ears
+	# Round fluffy ears — distinctive dark with pink inner
 	for side in [-1.0, 1.0]:
+		# Outer ear (dark brown)
 		var ear = MeshInstance3D.new()
 		var ear_mesh = SphereMesh.new()
-		ear_mesh.radius = 0.055
-		ear_mesh.height = 0.065
+		ear_mesh.radius = 0.09
+		ear_mesh.height = 0.1
 		ear.mesh = ear_mesh
-		ear.position = Vector3(side * 0.08, 0.25, -0.05)
+		ear.position = Vector3(side * 0.12, 0.35, -0.06)
 		var emat = StandardMaterial3D.new()
-		emat.albedo_color = Color(0.4, 0.4, 0.4)
+		emat.albedo_color = Color(0.35, 0.25, 0.18)
 		ear.material_override = emat
 		koala_root.add_child(ear)
+		# Inner ear (pink)
+		var inner_ear = MeshInstance3D.new()
+		var ie_mesh = SphereMesh.new()
+		ie_mesh.radius = 0.05
+		ie_mesh.height = 0.06
+		inner_ear.mesh = ie_mesh
+		inner_ear.position = Vector3(side * 0.12, 0.35, -0.1)
+		var ie_mat = StandardMaterial3D.new()
+		ie_mat.albedo_color = Color(0.9, 0.6, 0.6)  # pink
+		inner_ear.material_override = ie_mat
+		koala_root.add_child(inner_ear)
 
-	# Eyes
+	# Eyes — shiny black
 	for side in [-1.0, 1.0]:
 		var eye = MeshInstance3D.new()
 		var eye_mesh = SphereMesh.new()
-		eye_mesh.radius = 0.02
-		eye_mesh.height = 0.03
+		eye_mesh.radius = 0.035
+		eye_mesh.height = 0.04
 		eye.mesh = eye_mesh
-		eye.position = Vector3(side * 0.04, 0.2, -0.12)
+		eye.position = Vector3(side * 0.06, 0.28, -0.18)
 		var eyemat = StandardMaterial3D.new()
-		eyemat.albedo_color = Color.BLACK
+		eyemat.albedo_color = Color(0.05, 0.05, 0.05)
+		eyemat.metallic = 0.3
 		eye.material_override = eyemat
 		koala_root.add_child(eye)
 
-	# Nose
+	# Big round nose — signature koala feature
 	var nose = MeshInstance3D.new()
 	var nose_mesh = SphereMesh.new()
-	nose_mesh.radius = 0.025
-	nose_mesh.height = 0.03
+	nose_mesh.radius = 0.045
+	nose_mesh.height = 0.04
 	nose.mesh = nose_mesh
-	nose.position = Vector3(0, 0.17, -0.13)
+	nose.position = Vector3(0, 0.22, -0.2)
 	var nmat = StandardMaterial3D.new()
-	nmat.albedo_color = Color(0.15, 0.1, 0.1)
+	nmat.albedo_color = Color(0.1, 0.08, 0.08)
 	nose.material_override = nmat
 	koala_root.add_child(nose)
 
@@ -786,11 +799,11 @@ func _process(delta: float):
 			tail_node.rotation.y = sin(_bob_time * 1.5) * 0.3
 
 	# Dog tail wag (fast side-to-side)
-	if pet_type == "dogocorn" and _tail_node:
+	if pet_type == "dogicorn" and _tail_node:
 		_tail_node.rotation.y = sin(_bob_time * 8.0) * 0.4
 
 	# Cat tail swish (slow, elegant)
-	if pet_type == "catocorn" and _tail_node:
+	if pet_type == "caticorn" and _tail_node:
 		_tail_node.rotation.y = sin(_bob_time * 1.2) * 0.5
 		_tail_node.rotation.x = sin(_bob_time * 0.8) * 0.1
 
@@ -912,9 +925,9 @@ func _get_pet_color() -> Color:
 			return Color(0.0, 0.6, 0.0)
 		"alicorn":
 			return Color(0.6, 0.2, 0.8)
-		"dogocorn":
+		"dogicorn":
 			return Color(0.72, 0.53, 0.34)
-		"catocorn":
+		"caticorn":
 			return Color(0.95, 0.6, 0.2)
 		_:
 			return Color.WHITE

@@ -140,8 +140,14 @@ func import_pets_from_csv() -> Dictionary:
 		var pet_name = str(cols[1]).replace(";", ",")  # reverse the comma escaping
 		var pet_type = str(cols[2])
 
+		# Map old type names to new names
+		if pet_type == "dogocorn":
+			pet_type = "dogicorn"
+		elif pet_type == "catocorn":
+			pet_type = "caticorn"
+
 		# Validate pet type
-		if pet_type not in ["unicorn", "pegasus", "dragon", "alicorn", "dogocorn", "catocorn"]:
+		if pet_type not in ["unicorn", "pegasus", "dragon", "alicorn", "dogicorn", "caticorn"]:
 			continue
 
 		# CSV columns: pet_id(0),name(1),type(2),level(3),xp(4),
