@@ -46,6 +46,21 @@ func _ready():
 		_welcome_label.text = welcome_msg
 		_welcome_label.visible = true
 
+	# Show journey return notifications
+	var returns = game_manager.pop_journey_returns()
+	if returns.size() > 0:
+		var return_msg = ""
+		for ret in returns:
+			return_msg += "%s returned from '%s'! (+%d coins, +%d XP)\n" % [
+				ret["pet_name"], ret["quest_name"],
+				ret["rewards"]["coins"], ret["rewards"]["xp"]
+			]
+		if _welcome_label.text != "":
+			_welcome_label.text += "\n" + return_msg
+		else:
+			_welcome_label.text = return_msg
+		_welcome_label.visible = true
+
 	# Check achievements on hub load
 	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
 	if achievement_mgr:

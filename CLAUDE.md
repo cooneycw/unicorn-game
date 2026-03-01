@@ -61,10 +61,10 @@ unicorn, pegasus, dragon, alicorn, dogicorn, caticorn
 
 | Singleton | Script | Purpose |
 |-----------|--------|---------|
-| `GameManager` | `GameManager.gd` | Pet state, coins, XP, stat decay, egg hatching, game level progression |
+| `GameManager` | `GameManager.gd` | Pet state, coins, XP, stat decay, egg hatching, game level progression, adventure journeys |
 | `SaveManager` | `SaveManager.gd` | JSON save/load (`user://save_data.json`), CSV export |
 | `AudioManager` | `AudioManager.gd` | Procedural audio synthesis (no audio files) |
-| `AchievementManager` | `AchievementManager.gd` | 17 achievements tracking |
+| `AchievementManager` | `AchievementManager.gd` | 18 achievements tracking |
 | `PetPopulationManager` | `PetPopulationManager.gd` | Pet lifecycle states, soft cap (12), dynamic egg intervals |
 
 ### Standalone Model Script
@@ -77,7 +77,7 @@ unicorn, pegasus, dragon, alicorn, dogicorn, caticorn
 UP/DOWN + SPACE to navigate, or hotkeys: Q(Island) V(Vet) G(Random Game) D(Adoption Center) A(Achievements)
 
 ### Island
-WASD or Arrow keys or Numpad 8/4/2/6 — camera movement, LEFT/RIGHT — select pet, F — feed, P — play, R — rest, E — collect egg, I — inspect pet, X — rename pet, ESC — back
+WASD or Arrow keys or Numpad 8/4/2/6 — camera movement, LEFT/RIGHT — select pet, F — feed, P — play, R — rest, E — collect egg, I — inspect pet, X — rename pet, J — open Guild Board (adventure journeys), ESC — back
 
 ### Pet Profile
 X — rename pet, ESC — back to Island
@@ -106,3 +106,5 @@ M — mute/unmute audio, Ctrl+S — manual save
 - Adoption Center sends pets to families; adopted pets remain viewable in Friends Book and send postcards
 - Kindness Stars currency earned by adopting pets; stored in GameManager alongside coins
 - Must have at least 2 active pets to adopt one out (prevents empty island)
+- Adventure Journeys: 8 quests (10-45 min real time), pets earn coins/XP while away, send postcards mid-journey
+- Guild Board on Island (press J) lets player select quest then assign a pet; "First Explorer" achievement unlocked on first journey

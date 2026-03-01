@@ -26,6 +26,21 @@ var _renaming: bool = false
 var _rename_buffer: String = ""
 var _rename_label: Label
 
+# Guild Board (Adventure Journeys)
+var _guild_board_open: bool = false
+var _guild_panel: PanelContainer
+var _guild_label: Label
+var _guild_quest_index: int = 0
+var _available_quests: Array = []
+var _guild_state: String = "quest_select"  # "quest_select" or "pet_select"
+var _selected_quest: Dictionary = {}
+var _eligible_pets: Array = []
+var _guild_pet_index: int = 0
+
+# Postcard notification
+var _postcard_label: Label
+var _postcard_timer: float = 0.0
+
 # Egg spawning
 var _egg_spawn_timer: float = 0.0
 var _egg_spawn_interval: float = 0.0  # randomized on ready
@@ -82,11 +97,13 @@ func _ready():
 	_create_clouds_3d()
 	_create_sun_moon()
 	_create_rain_system()
+	_create_guild_board()
 	_spawn_all_pets()
 	_create_ui()
 
 	game_manager.pet_stat_changed.connect(_on_stat_changed)
 	game_manager.coins_changed.connect(_on_coins_changed)
+	game_manager.postcard_received.connect(_on_postcard_received)
 
 	if pet_ids.size() > 0:
 		_highlight_selected()
@@ -301,6 +318,48 @@ func _create_rain_system():
 	_rain_particles.draw_pass_1 = drop_mesh
 
 	add_child(_rain_particles)
+
+func _create_guild_board():
+	# Physical signpost on the Island — a wooden board near the edge
+	var board_root = Node3D.new()
+	board_root.position = Vector3(-8, -1, 8)
+	board_root.name = "GuildBoard"
+
+	# Post (vertical cylinder)
+	var post = MeshInstance3D.new()
+	var post_mesh = CylinderMesh.new()
+	post_mesh.top_radius = 0.08
+	post_mesh.bottom_radius = 0.1
+	post_mesh.height = 2.0
+	post.mesh = post_mesh
+	post.position.y = 1.0
+	var post_mat = StandardMaterial3D.new()
+	post_mat.albedo_color = Color(0.45, 0.3, 0.15)
+	post.material_override = post_mat
+	board_root.add_child(post)
+
+	# Board face (flat box)
+	var board = MeshInstance3D.new()
+	var board_mesh = BoxMesh.new()
+	board_mesh.size = Vector3(1.2, 0.8, 0.06)
+	board.mesh = board_mesh
+	board.position = Vector3(0, 1.8, 0)
+	var board_mat = StandardMaterial3D.new()
+	board_mat.albedo_color = Color(0.65, 0.5, 0.3)
+	board.material_override = board_mat
+	board_root.add_child(board)
+
+	# Label
+	var label = Label3D.new()
+	label.text = "Guild Board [J]"
+	label.font_size = 40
+	label.position = Vector3(0, 2.5, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.modulate = Color(1.0, 0.9, 0.5)
+	board_root.add_child(label)
+
+	add_child(board_root)
 
 func _build_girl_model(root: Node3D):
 	# Dress / body (cone shape — cute simple dress)
@@ -568,7 +627,7 @@ func _create_ui():
 
 	# Instructions — split into two lines so they don't overflow
 	_instructions_label = Label.new()
-	_instructions_label.text = "WASD/Numpad: walk | UP/DOWN or LEFT/RIGHT: select pet | F: feed | P: play | R: rest\nE: collect egg | I: inspect | X: rename | Ctrl+S: save | ESC: back"
+	_instructions_label.text = "WASD/Numpad: walk | UP/DOWN or LEFT/RIGHT: select pet | F: feed | P: play | R: rest\nE: collect egg | I: inspect | X: rename | J: Guild Board | Ctrl+S: save | ESC: back"
 	_instructions_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(_instructions_label)
 
@@ -601,6 +660,32 @@ func _create_ui():
 	_rename_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
 	_rename_label.visible = false
 	ui.add_child(_rename_label)
+
+	# Guild Board overlay panel (hidden by default)
+	_guild_panel = PanelContainer.new()
+	_guild_panel.position = Vector2(150, 80)
+	_guild_panel.size = Vector2(520, 500)
+	_guild_panel.visible = false
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.12, 0.1, 0.18, 0.92)
+	panel_style.border_color = Color(0.8, 0.65, 0.3)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(8)
+	_guild_panel.add_theme_stylebox_override("panel", panel_style)
+	ui.add_child(_guild_panel)
+
+	_guild_label = Label.new()
+	_guild_label.add_theme_font_size_override("font_size", 14)
+	_guild_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
+	_guild_panel.add_child(_guild_label)
+
+	# Postcard notification (bottom-center, hidden by default)
+	_postcard_label = Label.new()
+	_postcard_label.position = Vector2(150, 550)
+	_postcard_label.add_theme_font_size_override("font_size", 16)
+	_postcard_label.add_theme_color_override("font_color", Color(0.9, 0.8, 1.0))
+	_postcard_label.visible = false
+	ui.add_child(_postcard_label)
 
 func _highlight_selected():
 	if pet_ids.size() == 0:
@@ -646,6 +731,12 @@ func _process(delta: float):
 		_feedback_timer -= delta
 		if _feedback_timer <= 0:
 			_feedback_label.text = ""
+
+	# Postcard display timer
+	if _postcard_timer > 0:
+		_postcard_timer -= delta
+		if _postcard_timer <= 0:
+			_postcard_label.visible = false
 
 	# Egg spawn timer
 	if not _egg_available:
@@ -966,6 +1057,65 @@ func _input(event):
 		if is_action_key and event.is_echo():
 			return
 
+		# Guild Board input handling
+		if _guild_board_open:
+			if event.keycode == KEY_ESCAPE or event.keycode == KEY_J:
+				_close_guild_board()
+				return
+			if _guild_state == "quest_select":
+				if event.keycode == KEY_UP:
+					_guild_quest_index = max(0, _guild_quest_index - 1)
+					_refresh_guild_display()
+					return
+				if event.keycode == KEY_DOWN:
+					_guild_quest_index = min(_available_quests.size() - 1, _guild_quest_index + 1)
+					_refresh_guild_display()
+					return
+				if event.keycode == KEY_SPACE or event.keycode == KEY_ENTER:
+					if _available_quests.size() > 0:
+						_selected_quest = _available_quests[_guild_quest_index]
+						_eligible_pets = game_manager.get_eligible_pets_for_quest(_selected_quest)
+						if _eligible_pets.size() == 0:
+							_show_feedback("No pets meet the level requirement for this quest!")
+							return
+						_guild_state = "pet_select"
+						_guild_pet_index = 0
+						_refresh_guild_display()
+					return
+			elif _guild_state == "pet_select":
+				if event.keycode == KEY_BACKSPACE:
+					_guild_state = "quest_select"
+					_refresh_guild_display()
+					return
+				if event.keycode == KEY_UP:
+					_guild_pet_index = max(0, _guild_pet_index - 1)
+					_refresh_guild_display()
+					return
+				if event.keycode == KEY_DOWN:
+					_guild_pet_index = min(_eligible_pets.size() - 1, _guild_pet_index + 1)
+					_refresh_guild_display()
+					return
+				if event.keycode == KEY_SPACE or event.keycode == KEY_ENTER:
+					if _eligible_pets.size() > 0:
+						var chosen_pet_id = _eligible_pets[_guild_pet_index]
+						var success = game_manager.send_pet_on_journey(chosen_pet_id, _selected_quest)
+						if success:
+							var pet_name = game_manager.pets[chosen_pet_id]["name"]
+							_show_feedback("%s set off on '%s'! Check back later." % [pet_name, _selected_quest["name"]])
+							# Check achievement
+							var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
+							if achievement_mgr:
+								achievement_mgr.check_journey_sent()
+							if audio_manager:
+								audio_manager.play_sfx("coin")
+							# Remove pet from Island scene
+							_remove_pet_from_scene(chosen_pet_id)
+							_close_guild_board()
+						else:
+							_show_feedback("Could not send pet on journey.")
+					return
+			return
+
 		# Rename mode input handling
 		if _renaming:
 			if event.keycode == KEY_ESCAPE:
@@ -1038,3 +1188,79 @@ func _input(event):
 		if event.keycode == KEY_I:
 			_inspect_pet()
 			return
+
+		if event.keycode == KEY_J:
+			_open_guild_board()
+			return
+
+func _open_guild_board():
+	_available_quests = game_manager.get_available_quests()
+	_guild_quest_index = 0
+	_guild_state = "quest_select"
+	_guild_board_open = true
+	_guild_panel.visible = true
+	_refresh_guild_display()
+
+func _close_guild_board():
+	_guild_board_open = false
+	_guild_panel.visible = false
+
+func _refresh_guild_display():
+	var text = "=== GUILD BOARD ===\n\n"
+
+	# Show active journeys at top
+	if game_manager.active_journeys.size() > 0:
+		text += "-- Pets On Journeys --\n"
+		for journey in game_manager.active_journeys:
+			var pet = game_manager.pets.get(journey["pet_id"], null)
+			if pet:
+				var remaining = game_manager.get_journey_time_remaining(journey["pet_id"])
+				var mins = ceili(remaining / 60.0)
+				text += "  %s -> %s (%dm left)\n" % [pet["name"], journey["quest_name"], mins]
+		text += "\n"
+
+	if _guild_state == "quest_select":
+		text += "-- Available Quests --\n"
+		text += "UP/DOWN: browse | SPACE: select | ESC: close\n\n"
+		if _available_quests.size() == 0:
+			text += "  No quests available right now.\n"
+		else:
+			for i in range(_available_quests.size()):
+				var quest = _available_quests[i]
+				var prefix = "> " if i == _guild_quest_index else "  "
+				text += "%s%s (Lv%d+, %dm, %d coins)\n" % [prefix, quest["name"], quest["min_level"], quest["duration"], quest["coin_reward"]]
+				if i == _guild_quest_index:
+					text += "    %s\n" % quest["desc"]
+
+	elif _guild_state == "pet_select":
+		text += "-- Select a Pet for: %s --\n" % _selected_quest["name"]
+		text += "UP/DOWN: browse | SPACE: confirm | BACKSPACE: back\n\n"
+		for i in range(_eligible_pets.size()):
+			var pid = _eligible_pets[i]
+			var pet = game_manager.pets[pid]
+			var prefix = "> " if i == _guild_pet_index else "  "
+			text += "%s%s Lv%d (%s)\n" % [prefix, pet["name"], pet["level"], pet["type"]]
+
+	_guild_label.text = text
+
+func _remove_pet_from_scene(pet_id: int):
+	for i in range(pet_ids.size()):
+		if pet_ids[i] == pet_id:
+			var pet_node = pets_in_scene[i]
+			pet_node.queue_free()
+			pets_in_scene.remove_at(i)
+			pet_ids.remove_at(i)
+			# Fix selection index
+			if selected_pet_index >= pet_ids.size():
+				selected_pet_index = max(0, pet_ids.size() - 1)
+			_highlight_selected()
+			_update_stats_display()
+			_update_pop_display()
+			break
+
+func _on_postcard_received(pet_name: String, message: String):
+	_postcard_label.text = "Postcard from %s: %s" % [pet_name, message]
+	_postcard_label.visible = true
+	_postcard_timer = 6.0
+	if audio_manager:
+		audio_manager.play_sfx("menu_select")

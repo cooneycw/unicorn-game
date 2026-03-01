@@ -8,11 +8,22 @@ signal pet_mood_changed(pet_id: int, new_mood: String)
 signal welcome_back(message: String)
 signal pet_leveled_up(pet_id: int, new_level: int)
 signal pet_added(pet_id: int)
+signal pet_returned_from_journey(pet_id: int, quest_name: String, rewards: Dictionary)
+signal postcard_received(pet_name: String, message: String)
 
 var pets = {}
 var coins: int = 50
 var total_coins_earned: int = 0
 var current_location = "hub"
+
+# Adventure journeys — pets currently on quests
+# Each entry: { "pet_id": int, "quest_id": String, "quest_name": String,
+#   "depart_time": float, "return_time": float, "postcards_sent": int,
+#   "next_postcard_time": float }
+var active_journeys: Array = []
+
+# Pending return notifications — checked on Hub load
+var journey_returns: Array = []  # Array of { "pet_id", "quest_name", "rewards" }
 
 var _next_pet_id: int = 1
 var _decay_timer: float = 0.0
@@ -91,6 +102,8 @@ const COLOR_VARIANTS = {
 func _ready():
 	_load_saved_data()
 
+var _journey_check_timer: float = 0.0
+
 func _process(delta: float):
 	total_play_time += delta
 
@@ -101,6 +114,12 @@ func _process(delta: float):
 
 	# Tick egg hatch timers
 	_tick_eggs(delta)
+
+	# Check journey returns every 10 seconds (uses Unix time, no need for frequent checks)
+	_journey_check_timer += delta
+	if _journey_check_timer >= 10.0:
+		_journey_check_timer = 0.0
+		_tick_journeys()
 
 func _load_saved_data():
 	var save_manager = get_tree().root.get_node_or_null("SaveManager")
@@ -190,6 +209,22 @@ func _load_saved_data():
 			"message": str(pc.get("message", "")),
 			"coins": int(pc.get("coins", 0)),
 			"read": bool(pc.get("read", false)),
+		})
+
+	# Restore active journeys
+	var saved_journeys = data.get("active_journeys", [])
+	active_journeys = []
+	for j in saved_journeys:
+		active_journeys.append({
+			"pet_id": int(j.get("pet_id", 0)),
+			"quest_id": str(j.get("quest_id", "")),
+			"quest_name": str(j.get("quest_name", "")),
+			"theme": str(j.get("theme", "beach")),
+			"coin_reward": int(j.get("coin_reward", 20)),
+			"depart_time": float(j.get("depart_time", 0)),
+			"return_time": float(j.get("return_time", 0)),
+			"postcards_sent": int(j.get("postcards_sent", 0)),
+			"next_postcard_time": float(j.get("next_postcard_time", 0)),
 		})
 
 	# Restore achievements
@@ -559,3 +594,210 @@ func read_postcard(index: int):
 		if not postcards[index]["read"]:
 			postcards[index]["read"] = true
 			modify_coins(postcards[index]["coins"])
+
+# --- Adventure Journeys ---
+
+# Quest catalog — id, name, description, duration_minutes, min_level, theme
+const QUEST_CATALOG: Array = [
+	{"id": "rainbow_shells", "name": "Find Rainbow Shells", "desc": "Explore Crystal Cove for shimmering shells!", "duration": 10, "min_level": 1, "theme": "beach", "coin_reward": 15},
+	{"id": "cloud_caves", "name": "Map the Cloud Caves", "desc": "Chart the mysterious caves above the clouds!", "duration": 20, "min_level": 2, "theme": "sky", "coin_reward": 25},
+	{"id": "flower_valley", "name": "Visit Flower Valley", "desc": "A beautiful valley full of magical blooms!", "duration": 15, "min_level": 1, "theme": "garden", "coin_reward": 20},
+	{"id": "snow_mountain", "name": "Deliver Medicine to Snow Mountain", "desc": "Help the animals on the snowy peaks!", "duration": 30, "min_level": 3, "theme": "mountain", "coin_reward": 35},
+	{"id": "desert_oasis", "name": "Scout the Desert Oasis", "desc": "Find the hidden oasis in the golden sands!", "duration": 20, "min_level": 2, "theme": "desert", "coin_reward": 25},
+	{"id": "starlight_forest", "name": "Explore Starlight Forest", "desc": "A forest that glows at night with magical starlight!", "duration": 25, "min_level": 3, "theme": "forest", "coin_reward": 30},
+	{"id": "coral_reef", "name": "Dive to Coral Reef", "desc": "Discover the colorful underwater world!", "duration": 35, "min_level": 4, "theme": "ocean", "coin_reward": 40},
+	{"id": "crystal_kingdom", "name": "Visit the Crystal Kingdom", "desc": "A kingdom made entirely of sparkling crystals!", "duration": 45, "min_level": 5, "theme": "crystal", "coin_reward": 50},
+]
+
+# Postcard templates per theme
+const POSTCARD_TEMPLATES: Dictionary = {
+	"beach": [
+		"%s found a beautiful seashell!",
+		"%s is splashing in the waves!",
+		"%s built a sandcastle!",
+	],
+	"sky": [
+		"%s is flying above the clouds!",
+		"%s found a hidden cave entrance!",
+		"%s made friends with a cloud sprite!",
+	],
+	"garden": [
+		"%s is rolling in the flowers!",
+		"%s found a rare golden bloom!",
+		"%s is chasing butterflies!",
+	],
+	"mountain": [
+		"%s reached the snowy peak!",
+		"%s helped a lost mountain goat!",
+		"%s is sledding down a hill!",
+	],
+	"desert": [
+		"%s found the hidden oasis!",
+		"%s rode a sand dune!",
+		"%s spotted a mirage!",
+	],
+	"forest": [
+		"%s is watching the fireflies!",
+		"%s found a glowing mushroom!",
+		"%s heard a magical owl singing!",
+	],
+	"ocean": [
+		"%s is swimming with colorful fish!",
+		"%s found a treasure chest!",
+		"%s met a friendly sea turtle!",
+	],
+	"crystal": [
+		"%s is amazed by the crystal towers!",
+		"%s found a magic crystal shard!",
+		"%s met the Crystal Guardian!",
+	],
+}
+
+func get_available_quests() -> Array:
+	var available = []
+	for quest in QUEST_CATALOG:
+		# Check if any pet is already on this quest
+		var in_progress = false
+		for journey in active_journeys:
+			if journey["quest_id"] == quest["id"]:
+				in_progress = true
+				break
+		if not in_progress:
+			available.append(quest)
+	return available
+
+func get_eligible_pets_for_quest(quest: Dictionary) -> Array:
+	var eligible = []
+	for pet_id in pets.keys():
+		var pet = pets[pet_id]
+		if pet.get("status", 0) != 0:  # not ACTIVE
+			continue
+		if pet["level"] < quest["min_level"]:
+			continue
+		eligible.append(pet_id)
+	return eligible
+
+func send_pet_on_journey(pet_id: int, quest: Dictionary) -> bool:
+	if pet_id not in pets:
+		return false
+	var pet = pets[pet_id]
+	if pet.get("status", 0) != 0:
+		return false
+	if pet["level"] < quest["min_level"]:
+		return false
+
+	var pop_manager = get_tree().root.get_node_or_null("PetPopulationManager")
+	if pop_manager:
+		pop_manager.transition_pet(pet_id, 1)  # ON_JOURNEY
+
+	var now = Time.get_unix_time_from_system()
+	var duration_seconds = quest["duration"] * 60.0
+	var postcard_interval = duration_seconds / 3.0  # send ~2 postcards during journey
+
+	active_journeys.append({
+		"pet_id": pet_id,
+		"quest_id": quest["id"],
+		"quest_name": quest["name"],
+		"theme": quest["theme"],
+		"coin_reward": quest["coin_reward"],
+		"depart_time": now,
+		"return_time": now + duration_seconds,
+		"postcards_sent": 0,
+		"next_postcard_time": now + postcard_interval,
+	})
+
+	return true
+
+func _tick_journeys():
+	var now = Time.get_unix_time_from_system()
+	var completed_indices: Array = []
+
+	for i in range(active_journeys.size()):
+		var journey = active_journeys[i]
+		var pet_id = journey["pet_id"]
+
+		# Check for postcard
+		if now >= journey["next_postcard_time"] and journey["postcards_sent"] < 2:
+			var pet = pets.get(pet_id, null)
+			if pet:
+				var theme = journey["theme"]
+				var templates = POSTCARD_TEMPLATES.get(theme, ["%s is having an adventure!"])
+				var msg = templates[randi() % templates.size()] % pet["name"]
+				postcard_received.emit(pet["name"], msg)
+				journey["postcards_sent"] += 1
+				var remaining = journey["return_time"] - now
+				journey["next_postcard_time"] = now + remaining / 2.0
+
+		# Check for return
+		if now >= journey["return_time"]:
+			completed_indices.append(i)
+
+	# Process returns (reverse order to preserve indices)
+	completed_indices.reverse()
+	for i in completed_indices:
+		_complete_journey(i)
+
+func _complete_journey(index: int):
+	var journey = active_journeys[index]
+	var pet_id = journey["pet_id"]
+	active_journeys.remove_at(index)
+
+	if pet_id not in pets:
+		return
+
+	var pet = pets[pet_id]
+	var level = pet["level"]
+
+	# Calculate rewards — higher level = better rewards
+	var base_coins = journey.get("coin_reward", 20)
+	var bonus_coins = level * 3
+	var total_coins = base_coins + bonus_coins
+	var xp_reward = 15 + level * 5
+
+	# Transition back to active
+	var pop_manager = get_tree().root.get_node_or_null("PetPopulationManager")
+	if pop_manager:
+		pop_manager.transition_pet(pet_id, 0)  # ACTIVE
+
+	# Apply rewards
+	modify_coins(total_coins)
+	add_xp(pet_id, xp_reward)
+	modify_stat(pet_id, "happiness", 20)
+
+	var rewards = {
+		"coins": total_coins,
+		"xp": xp_reward,
+		"quest_name": journey["quest_name"],
+	}
+
+	journey_returns.append({
+		"pet_id": pet_id,
+		"pet_name": pet["name"],
+		"quest_name": journey["quest_name"],
+		"rewards": rewards,
+	})
+
+	pet_returned_from_journey.emit(pet_id, journey["quest_name"], rewards)
+
+	# Check achievement
+	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
+	if achievement_mgr:
+		achievement_mgr.check_journey_sent()
+
+func get_journey_for_pet(pet_id: int) -> Dictionary:
+	for journey in active_journeys:
+		if journey["pet_id"] == pet_id:
+			return journey
+	return {}
+
+func get_journey_time_remaining(pet_id: int) -> float:
+	var journey = get_journey_for_pet(pet_id)
+	if journey.is_empty():
+		return 0.0
+	var now = Time.get_unix_time_from_system()
+	return maxf(0.0, journey["return_time"] - now)
+
+func pop_journey_returns() -> Array:
+	var returns = journey_returns.duplicate()
+	journey_returns.clear()
+	return returns
