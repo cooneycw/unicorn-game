@@ -87,8 +87,9 @@ func _create_ui():
 	for pet_id in all_pets.keys():
 		var pet_info = all_pets[pet_id]
 
+		var cap = game_manager.get_stat_cap(pet_id)
 		var pet_text = Label.new()
-		pet_text.text = "  %s (%s) - Health: %d/100" % [pet_info["name"], pet_info["type"], pet_info["health"]]
+		pet_text.text = "  %s (%s) - Health: %d/%d" % [pet_info["name"], pet_info["type"], pet_info["health"], cap]
 		pet_text.position = Vector2(10, y_offset)
 		pet_text.name = "Pet_%d" % pet_id
 		ui.add_child(pet_text)
@@ -110,15 +111,16 @@ func _select_pet(pet_id: int):
 	var pet_info = game_manager.get_pet_info(pet_id)
 	var mood = game_manager.get_pet_mood(pet_id)
 
+	var cap = game_manager.get_stat_cap(pet_id)
 	var status_label = get_node("UI/StatusLabel")
-	status_label.text = "> Selected: %s (%s) — Mood: %s\n  Health: %d/100\n  Happiness: %d/100\n  Hunger: %d/100\n  Energy: %d/100\n\nPress H to heal, or UP/DOWN to choose another pet" % [
+	status_label.text = "> Selected: %s (%s) — Mood: %s\n  Health: %d/%d\n  Happiness: %d/%d\n  Hunger: %d/%d\n  Energy: %d/%d\n\nPress H to heal, or UP/DOWN to choose another pet" % [
 		pet_info["name"],
 		pet_info["type"],
 		mood,
-		pet_info["health"],
-		pet_info["happiness"],
-		pet_info["hunger"],
-		pet_info["energy"]
+		pet_info["health"], cap,
+		pet_info["happiness"], cap,
+		pet_info["hunger"], cap,
+		pet_info["energy"], cap
 	]
 
 	# Update visual highlighting
@@ -126,10 +128,11 @@ func _select_pet(pet_id: int):
 	for pid in all_pets.keys():
 		var pet_text = get_node("UI/Pet_%d" % pid)
 		var pinfo = all_pets[pid]
+		var pcap = game_manager.get_stat_cap(pid)
 		if pid == pet_id:
-			pet_text.text = "> %s (%s) - Health: %d/100" % [pinfo["name"], pinfo["type"], pinfo["health"]]
+			pet_text.text = "> %s (%s) - Health: %d/%d" % [pinfo["name"], pinfo["type"], pinfo["health"], pcap]
 		else:
-			pet_text.text = "  %s (%s) - Health: %d/100" % [pinfo["name"], pinfo["type"], pinfo["health"]]
+			pet_text.text = "  %s (%s) - Health: %d/%d" % [pinfo["name"], pinfo["type"], pinfo["health"], pcap]
 
 func _heal_pet():
 	if selected_pet_id == null:
@@ -152,8 +155,9 @@ func _heal_pet():
 		if audio_manager:
 			audio_manager.play_sfx("heal")
 
+		var heal_cap = game_manager.get_stat_cap(selected_pet_id)
 		var pet_text = get_node("UI/Pet_%d" % selected_pet_id)
-		pet_text.text = "> %s (%s) - Health: %d/100" % [pet_info["name"], pet_info["type"], pet_info["health"]]
+		pet_text.text = "> %s (%s) - Health: %d/%d" % [pet_info["name"], pet_info["type"], pet_info["health"], heal_cap]
 
 		var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
 		if achievement_mgr:
