@@ -77,8 +77,8 @@ const COLOR_VARIANTS = {
 	"pegasus": [Color.LIGHT_GRAY, Color(0.75, 0.75, 0.75), Color(0.53, 0.81, 0.92), Color(0.73, 0.56, 0.87)],
 	"dragon": [Color(0.0, 0.6, 0.0), Color(0.0, 0.75, 0.0), Color(0.4, 0.0, 0.6), Color(1.0, 0.5, 0.0)],
 	"alicorn": [Color(0.6, 0.2, 0.8), Color(0.1, 0.1, 0.7), Color.WHITE],
-	"dogocorn": [Color(0.72, 0.53, 0.34), Color(0.95, 0.87, 0.73), Color(0.3, 0.3, 0.3), Color(1.0, 0.85, 0.6)],
-	"catocorn": [Color(0.95, 0.6, 0.2), Color(0.2, 0.2, 0.2), Color(0.85, 0.85, 0.85), Color(0.75, 0.55, 0.35)],
+	"dogicorn": [Color(0.72, 0.53, 0.34), Color(0.95, 0.87, 0.73), Color(0.3, 0.3, 0.3), Color(1.0, 0.85, 0.6)],
+	"caticorn": [Color(0.95, 0.6, 0.2), Color(0.2, 0.2, 0.2), Color(0.85, 0.85, 0.85), Color(0.75, 0.55, 0.35)],
 }
 
 func _ready():
@@ -121,9 +121,15 @@ func _load_saved_data():
 	for key in saved_pets.keys():
 		var pet_id = int(key)
 		var pet_data = saved_pets[key]
+		# Map old type names to new names
+		var loaded_type = str(pet_data.get("type", "unicorn"))
+		if loaded_type == "dogocorn":
+			loaded_type = "dogicorn"
+		elif loaded_type == "catocorn":
+			loaded_type = "caticorn"
 		pets[pet_id] = {
 			"name": str(pet_data.get("name", "Pet")),
-			"type": str(pet_data.get("type", "unicorn")),
+			"type": loaded_type,
 			"health": int(pet_data.get("health", 100)),
 			"happiness": int(pet_data.get("happiness", 100)),
 			"hunger": int(pet_data.get("hunger", 50)),
@@ -275,9 +281,9 @@ func _roll_egg_type() -> String:
 	elif roll < 0.65:
 		return "dragon"
 	elif roll < 0.77:
-		return "dogocorn"
+		return "dogicorn"
 	elif roll < 0.89:
-		return "catocorn"
+		return "caticorn"
 	else:
 		return "alicorn"
 

@@ -78,7 +78,7 @@ func check_all():
 	# Dog Lover
 	var dog_count = 0
 	for pid in all_pets.keys():
-		if all_pets[pid]["type"] == "dogocorn":
+		if all_pets[pid]["type"] == "dogicorn":
 			dog_count += 1
 	if dog_count >= 3:
 		_try_unlock("dog_lover")
@@ -86,7 +86,7 @@ func check_all():
 	# Cat Lover
 	var cat_count = 0
 	for pid in all_pets.keys():
-		if all_pets[pid]["type"] == "catocorn":
+		if all_pets[pid]["type"] == "caticorn":
 			cat_count += 1
 	if cat_count >= 3:
 		_try_unlock("cat_lover")

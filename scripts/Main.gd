@@ -216,23 +216,26 @@ func _update_egg_display():
 
 func _spawn_starting_pets():
 	var pet_names = ["Sparkle", "Rainbow", "Cloud", "Moonlight", "Biscuit", "Whiskers"]
-	var pet_types = ["unicorn", "pegasus", "dragon", "alicorn", "dogocorn", "catocorn"]
+	var pet_types = ["unicorn", "pegasus", "dragon", "alicorn", "dogicorn", "caticorn"]
 
+	# Create pet data first (before spawning visuals)
 	for i in range(pet_names.size()):
-		var pet_id = game_manager.add_pet(pet_names[i], pet_types[i])
-		_spawn_pet_in_world(pet_id)
+		game_manager.add_pet(pet_names[i], pet_types[i])
 
-	# Guarantee at least one pet has a koala rider
+	# Guarantee at least one pet has a koala rider before building visuals
 	var any_koala = false
 	for pid in game_manager.pets.keys():
 		if game_manager.pets[pid].get("has_koala", false):
 			any_koala = true
 			break
 	if not any_koala:
-		# Give a random starting pet a koala
 		var all_ids = game_manager.pets.keys()
 		var lucky_id = all_ids[randi() % all_ids.size()]
 		game_manager.pets[lucky_id]["has_koala"] = true
+
+	# Now spawn visuals — Pet._ready() will see correct has_koala data
+	for pid in game_manager.pets.keys():
+		_spawn_pet_in_world(pid)
 
 	_refresh_pet_list()
 
