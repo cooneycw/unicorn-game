@@ -13,6 +13,7 @@ var _coins_label: Label
 var _pet_list_label: Label
 var _instructions_label: Label
 var _feedback_timer: float = 0.0
+var _scroll_container: ScrollContainer
 
 # Action cooldown to prevent exploits (e.g. holding P+R or rapid tapping)
 var _action_cooldown: float = 0.0
@@ -303,11 +304,17 @@ func _create_ui():
 	ui.name = "UI"
 	add_child(ui)
 
-	# Main vertical layout — no more overlapping absolute positions
+	# Scroll container so the pet list + stats can be scrolled when overflowing
+	_scroll_container = ScrollContainer.new()
+	_scroll_container.position = Vector2(10, 10)
+	_scroll_container.size = Vector2(500, 600)
+	_scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	ui.add_child(_scroll_container)
+
+	# Main vertical layout
 	var vbox = VBoxContainer.new()
-	vbox.position = Vector2(10, 10)
-	vbox.size = Vector2(500, 600)
-	ui.add_child(vbox)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll_container.add_child(vbox)
 
 	# Title row with coins
 	var title_row = HBoxContainer.new()
@@ -330,7 +337,7 @@ func _create_ui():
 
 	# Instructions — split into two lines so they don't overflow
 	_instructions_label = Label.new()
-	_instructions_label.text = "WASD/Arrows: walk | LEFT/RIGHT: select pet | F: feed | P: play | R: rest\nE: collect egg | I: inspect | X: rename | Ctrl+S: save | ESC: back"
+	_instructions_label.text = "WASD/Numpad: walk | UP/DOWN or LEFT/RIGHT: select pet | F: feed | P: play | R: rest\nE: collect egg | I: inspect | X: rename | Ctrl+S: save | ESC: back"
 	_instructions_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(_instructions_label)
 
@@ -473,9 +480,9 @@ func _process(delta: float):
 
 	# WASD + Numpad + Arrow camera movement
 	var move_dir = Vector3.ZERO
-	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_KP_8) or Input.is_key_pressed(KEY_UP):
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_KP_8):
 		move_dir.z -= 1
-	if (Input.is_key_pressed(KEY_S) and not Input.is_key_pressed(KEY_CTRL)) or Input.is_key_pressed(KEY_KP_2) or Input.is_key_pressed(KEY_DOWN):
+	if (Input.is_key_pressed(KEY_S) and not Input.is_key_pressed(KEY_CTRL)) or Input.is_key_pressed(KEY_KP_2):
 		move_dir.z += 1
 	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_KP_4):
 		move_dir.x -= 1
@@ -718,7 +725,7 @@ func _input(event):
 			_show_feedback("Game saved!")
 			return
 
-		if event.keycode == KEY_LEFT:
+		if event.keycode == KEY_LEFT or event.keycode == KEY_UP:
 			selected_pet_index = max(0, selected_pet_index - 1)
 			_highlight_selected()
 			_update_stats_display()
@@ -726,7 +733,7 @@ func _input(event):
 				audio_manager.play_sfx("menu_navigate")
 			return
 
-		if event.keycode == KEY_RIGHT:
+		if event.keycode == KEY_RIGHT or event.keycode == KEY_DOWN:
 			selected_pet_index = min(pet_ids.size() - 1, selected_pet_index + 1)
 			_highlight_selected()
 			_update_stats_display()
