@@ -4,7 +4,7 @@ extends Node
 
 const SAVE_PATH = "user://save_data.json"
 const CSV_PATH = "user://pets_export.csv"
-const SAVE_VERSION = 3
+const SAVE_VERSION = 4
 const AUTO_SAVE_INTERVAL = 60.0
 
 signal game_saved
@@ -60,12 +60,12 @@ func _export_csv(gm):
 		return
 
 	# Header
-	file.store_line("pet_id,name,type,level,xp,health,happiness,hunger,energy,color_variant,has_koala")
+	file.store_line("pet_id,name,type,level,xp,health,happiness,hunger,energy,color_variant,has_koala,status")
 
 	# Data rows
 	for pet_id in gm.pets.keys():
 		var p = gm.pets[pet_id]
-		var line = "%d,%s,%s,%d,%d,%d,%d,%d,%d,%d,%s" % [
+		var line = "%d,%s,%s,%d,%d,%d,%d,%d,%d,%d,%s,%d" % [
 			pet_id,
 			str(p["name"]).replace(",", ";"),  # escape commas in names
 			p["type"],
@@ -76,7 +76,8 @@ func _export_csv(gm):
 			p["hunger"],
 			p["energy"],
 			p["color_variant"],
-			str(p.get("has_koala", false))
+			str(p.get("has_koala", false)),
+			int(p.get("status", 0))
 		]
 		file.store_line(line)
 
@@ -151,7 +152,7 @@ func import_pets_from_csv() -> Dictionary:
 			continue
 
 		# CSV columns: pet_id(0),name(1),type(2),level(3),xp(4),
-		#   health(5),happiness(6),hunger(7),energy(8),color_variant(9),has_koala(10)
+		#   health(5),happiness(6),hunger(7),energy(8),color_variant(9),has_koala(10),status(11)
 		var pet = {
 			"name": pet_name,
 			"type": pet_type,
@@ -164,6 +165,7 @@ func import_pets_from_csv() -> Dictionary:
 			"location": "hub",
 			"color_variant": int(cols[9]) if cols.size() > 9 else 0,
 			"has_koala": str(cols[10]).to_lower() == "true" if cols.size() > 10 else false,
+			"status": int(cols[11]) if cols.size() > 11 else 0,
 		}
 
 		imported_pets[pid] = pet

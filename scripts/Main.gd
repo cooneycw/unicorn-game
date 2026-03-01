@@ -3,6 +3,7 @@ extends Node3D
 # Main game scene (Hub) — mood summaries, coins, eggs, achievements
 var game_manager
 var audio_manager
+var pop_manager
 var selected_menu_item = 0
 var menu_count = 4
 
@@ -25,6 +26,7 @@ var _mute_label: Label
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
+	pop_manager = get_tree().root.get_node_or_null("PetPopulationManager")
 
 	_create_island()
 	_create_ui()
@@ -164,9 +166,14 @@ func _refresh_pet_list():
 	for child in _pets_container.get_children():
 		child.queue_free()
 
+	# Show active pets in hub; non-active pets listed separately
 	var all_pets = game_manager.get_all_pets()
+	var non_active_count = 0
 	for pet_id in all_pets.keys():
 		var info = all_pets[pet_id]
+		if info.get("status", 0) != 0:
+			non_active_count += 1
+			continue
 		var mood = game_manager.get_pet_mood(pet_id)
 		var emoji = game_manager.get_mood_emoji(pet_id)
 		var level = game_manager.get_level(pet_id)
@@ -198,6 +205,14 @@ func _refresh_pet_list():
 			row.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
 
 		_pets_container.add_child(row)
+
+	# Show count of pets away (on journey, adopted, etc.)
+	if non_active_count > 0:
+		var away_label = Label.new()
+		away_label.text = "(%d pet%s away on adventures or adopted)" % [non_active_count, "s" if non_active_count != 1 else ""]
+		away_label.add_theme_font_size_override("font_size", 12)
+		away_label.add_theme_color_override("font_color", Color(0.6, 0.7, 0.9))
+		_pets_container.add_child(away_label)
 
 	_update_egg_display()
 
