@@ -55,18 +55,12 @@ var _result_label: Label
 var _screen_width: float = 1152.0
 var _screen_height: float = 648.0
 
-var _active_pet_id: int = -1
-
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
 	game_manager.pending_game = "res://scenes/MiniGame.tscn"
 
 	_level = game_manager.get_game_level("treat_catch")
-
-	var all_pets = game_manager.get_all_pets()
-	if all_pets.size() > 0:
-		_active_pet_id = all_pets.keys()[0]
 
 	var viewport_size = get_viewport().get_visible_rect().size
 	if viewport_size.x > 0:
@@ -270,9 +264,10 @@ func _end_game():
 
 	if _coins_earned > 0:
 		game_manager.modify_coins(_coins_earned)
-	if _active_pet_id >= 0 and _score > 0:
-		game_manager.modify_stat(_active_pet_id, "happiness", _score * 2)
-		game_manager.add_xp(_active_pet_id, _score)
+	if _score > 0:
+		for pet_id in game_manager.get_all_pets().keys():
+			game_manager.modify_stat(pet_id, "happiness", _score * 2)
+			game_manager.add_xp(pet_id, _score)
 
 	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
 	if achievement_mgr:
