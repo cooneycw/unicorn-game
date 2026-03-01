@@ -288,7 +288,7 @@ func _game_won():
 	var msg = "You matched them all! +%d bonus coins!%s" % [bonus, egg_msg]
 	if leveled_up:
 		msg += " LEVEL UP! Now Level %d: %s" % [_level, LEVEL_NAMES[_level]]
-	msg += " ESC to exit."
+	msg += " SPACE: play again | ESC: exit"
 	_info_label.text = msg
 	_update_status()
 	can_flip = false
@@ -302,8 +302,10 @@ func _input(event):
 			get_tree().change_scene_to_file("res://scenes/Main.tscn")
 			return
 
-		# After winning, no replay from within — just ESC back
+		# After winning, SPACE to play again
 		if matched_pairs >= total_pairs:
+			if event.keycode == KEY_SPACE:
+				get_tree().reload_current_scene()
 			return
 
 		if event.keycode == KEY_UP:
