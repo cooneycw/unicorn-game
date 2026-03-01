@@ -64,7 +64,7 @@ unicorn, pegasus, dragon, alicorn, dogicorn, caticorn
 | `SaveManager` | `SaveManager.gd` | JSON save/load (`user://save_data.json`), CSV export |
 | `AudioManager` | `AudioManager.gd` | Procedural audio synthesis (no audio files) |
 | `AchievementManager` | `AchievementManager.gd` | 17 achievements tracking |
-| `EggManager` | `EggManager.gd` | Egg collection UI overlay |
+| `PetPopulationManager` | `PetPopulationManager.gd` | Pet lifecycle states, soft cap (12), dynamic egg intervals |
 
 ### Standalone Model Script
 
@@ -88,7 +88,7 @@ M — mute/unmute audio, Ctrl+S — manual save
 
 - All 3D scenes extend `Node3D`; mini-games extend `Node2D`; UI-only screens use `Control`
 - No external dependencies or assets — everything is procedural
-- Save format version is tracked in `SaveManager.SAVE_VERSION` (currently 3)
+- Save format version is tracked in `SaveManager.SAVE_VERSION` (currently 4)
 - Pet stats floor at 10 for hunger/happiness (never reach 0 from decay)
 - Action cooldown of 0.5s on Island prevents input exploits
 - Egg inventory max: 3 eggs, 300s hatch timer each
@@ -99,3 +99,6 @@ M — mute/unmute audio, Ctrl+S — manual save
 - Unicorns have rainbow manes/tails; pegasus have blue manes/tails and pink wings
 - Dragons have green bodies and gold heads
 - Island sky is light blue, transitions to gray during rain
+- Pet lifecycle states: ACTIVE, ON_JOURNEY, ADOPTED, RETIRED, AT_ACADEMY (managed by PetPopulationManager)
+- Soft cap of 12 active pets; egg spawn interval increases dynamically with population (7min base + 45s per pet)
+- Only ACTIVE pets spawn on Island; non-active pets shown as summary count in Hub

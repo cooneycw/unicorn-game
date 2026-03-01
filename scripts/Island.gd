@@ -3,6 +3,7 @@ extends Node3D
 # Island scene — pet interactions, egg spawning, environment, keyboard controls
 var game_manager
 var audio_manager
+var pop_manager
 var pets_in_scene: Array = []
 var selected_pet_index: int = 0
 var pet_ids: Array = []
@@ -10,6 +11,7 @@ var pet_ids: Array = []
 var _feedback_label: Label
 var _stats_label: Label
 var _coins_label: Label
+var _pop_label: Label
 var _pet_list_label: Label
 var _instructions_label: Label
 var _feedback_timer: float = 0.0
@@ -72,6 +74,7 @@ var _next_rain_time: float = 0.0
 func _ready():
 	game_manager = get_tree().root.get_node("GameManager")
 	audio_manager = get_tree().root.get_node_or_null("AudioManager")
+	pop_manager = get_tree().root.get_node_or_null("PetPopulationManager")
 
 	_create_island_environment()
 	_create_trees()
@@ -89,8 +92,11 @@ func _ready():
 		_highlight_selected()
 		_update_stats_display()
 
-	# Randomize first egg spawn (5-10 minutes)
-	_egg_spawn_interval = randf_range(300.0, 600.0)
+	# Dynamic egg spawn interval based on population
+	if pop_manager:
+		_egg_spawn_interval = pop_manager.next_egg_interval()
+	else:
+		_egg_spawn_interval = randf_range(300.0, 600.0)
 
 	# First rain event in 2-5 minutes
 	_next_rain_time = randf_range(120.0, 300.0)
@@ -396,7 +402,7 @@ func _update_camera_follow():
 	_camera.look_at(_girl.position + Vector3(0, 0.5, 0), Vector3.UP)
 
 func _spawn_all_pets():
-	var all_pets = game_manager.get_all_pets()
+	var all_pets = game_manager.get_active_pets()
 
 	for pet_id in all_pets.keys():
 		var pet_info = all_pets[pet_id]
@@ -548,6 +554,17 @@ func _create_ui():
 	_coins_label.add_theme_font_size_override("font_size", 16)
 	_coins_label.add_theme_color_override("font_color", Color.YELLOW)
 	title_row.add_child(_coins_label)
+
+	# Population indicator
+	_pop_label = Label.new()
+	_pop_label.add_theme_font_size_override("font_size", 14)
+	if pop_manager:
+		_pop_label.text = pop_manager.get_population_label()
+		_pop_label.add_theme_color_override("font_color", pop_manager.get_population_color())
+	else:
+		_pop_label.text = "Pets: %d" % game_manager.pets.size()
+		_pop_label.add_theme_color_override("font_color", Color(0.6, 1.0, 0.6))
+	vbox.add_child(_pop_label)
 
 	# Instructions — split into two lines so they don't overflow
 	_instructions_label = Label.new()
@@ -807,8 +824,11 @@ func _collect_egg():
 		_egg_node = null
 		_egg_label = null
 
-	# Reset spawn timer for next egg
-	_egg_spawn_interval = randf_range(300.0, 600.0)
+	# Reset spawn timer — dynamic interval based on population
+	if pop_manager:
+		_egg_spawn_interval = pop_manager.next_egg_interval()
+	else:
+		_egg_spawn_interval = randf_range(300.0, 600.0)
 
 	_show_feedback("Egg collected! It will hatch in about 5 minutes.")
 
@@ -820,6 +840,12 @@ func _collect_egg():
 func _on_stat_changed(_pet_id: int, _stat_name: String, _new_value: int):
 	_highlight_selected()
 	_update_stats_display()
+	_update_pop_display()
+
+func _update_pop_display():
+	if pop_manager and _pop_label:
+		_pop_label.text = pop_manager.get_population_label()
+		_pop_label.add_theme_color_override("font_color", pop_manager.get_population_color())
 
 func _on_coins_changed(new_amount: int):
 	_coins_label.text = "Coins: %d" % new_amount

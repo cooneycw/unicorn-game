@@ -139,6 +139,7 @@ func _load_saved_data():
 			"level": int(pet_data.get("level", 1)),
 			"color_variant": int(pet_data.get("color_variant", 0)),
 			"has_koala": bool(pet_data.get("has_koala", false)),
+			"status": int(pet_data.get("status", 0)),  # default ACTIVE for old saves
 		}
 
 	# Restore egg inventory
@@ -312,6 +313,7 @@ func add_pet(pet_name: String, pet_type: String) -> int:
 		"level": 1,
 		"color_variant": 0,
 		"has_koala": randf() < 0.2,
+		"status": 0,  # PetPopulationManager.Status.ACTIVE
 	}
 	return pet_id
 
@@ -450,3 +452,10 @@ func get_pet_info(pet_id: int):
 
 func get_all_pets():
 	return pets
+
+func get_active_pets() -> Dictionary:
+	var result = {}
+	for pet_id in pets.keys():
+		if pets[pet_id].get("status", 0) == 0:  # ACTIVE
+			result[pet_id] = pets[pet_id]
+	return result
