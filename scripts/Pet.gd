@@ -48,10 +48,10 @@ func _ready():
 	_build_label()
 	_build_particles()
 
-	# Koala rider
+	# Koala rider — only on unicorn, pegasus, dragon
 	if _game_manager:
 		var info = _game_manager.get_pet_info(pet_id)
-		if info and info.get("has_koala", false):
+		if info and info.get("has_koala", false) and pet_type in ["unicorn", "pegasus", "dragon"]:
 			_build_koala()
 
 	_game_manager.pet_leveled_up.connect(_on_pet_leveled_up)

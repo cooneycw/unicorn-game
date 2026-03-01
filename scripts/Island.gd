@@ -31,6 +31,11 @@ var _egg_node: MeshInstance3D = null
 var _egg_label: Label3D = null
 var _egg_available: bool = false
 
+# Walking koalas (independent, not riding pets)
+var _walking_koalas: Array = []
+var _koala_targets: Array = []
+var _koala_pauses: Array = []
+
 # Sky environment
 var _world_env: WorldEnvironment
 var _sky_env: Environment
@@ -297,6 +302,104 @@ func _spawn_all_pets():
 		pets_in_scene.append(pet)
 		pet_ids.append(pet_id)
 
+		# Spawn a standalone walking koala if this pet has a koala but isn't a rider-compatible type
+		if pet_info.get("has_koala", false) and pet_info["type"] not in ["unicorn", "pegasus", "dragon"]:
+			_spawn_walking_koala()
+
+func _spawn_walking_koala():
+	var koala = Node3D.new()
+	koala.position = Vector3(randf_range(-6, 6), 0.3, randf_range(-6, 6))
+	koala.name = "WalkingKoala"
+
+	# Body
+	var body = MeshInstance3D.new()
+	var body_mesh = SphereMesh.new()
+	body_mesh.radius = 0.2
+	body_mesh.height = 0.35
+	body.mesh = body_mesh
+	var bmat = StandardMaterial3D.new()
+	bmat.albedo_color = Color(0.5, 0.4, 0.3)
+	body.material_override = bmat
+	koala.add_child(body)
+
+	# Head
+	var head = MeshInstance3D.new()
+	var head_mesh = SphereMesh.new()
+	head_mesh.radius = 0.16
+	head_mesh.height = 0.28
+	head.mesh = head_mesh
+	head.position = Vector3(0, 0.28, -0.08)
+	var hmat = StandardMaterial3D.new()
+	hmat.albedo_color = Color(0.65, 0.55, 0.4)
+	head.material_override = hmat
+	koala.add_child(head)
+
+	# Ears
+	for side in [-1.0, 1.0]:
+		var ear = MeshInstance3D.new()
+		var ear_mesh = SphereMesh.new()
+		ear_mesh.radius = 0.1
+		ear_mesh.height = 0.12
+		ear.mesh = ear_mesh
+		ear.position = Vector3(side * 0.14, 0.4, -0.08)
+		var emat = StandardMaterial3D.new()
+		emat.albedo_color = Color(0.35, 0.25, 0.18)
+		ear.material_override = emat
+		koala.add_child(ear)
+
+	# Eyes
+	for side in [-1.0, 1.0]:
+		var eye = MeshInstance3D.new()
+		var eye_mesh = SphereMesh.new()
+		eye_mesh.radius = 0.035
+		eye_mesh.height = 0.04
+		eye.mesh = eye_mesh
+		eye.position = Vector3(side * 0.07, 0.3, -0.22)
+		var eyemat = StandardMaterial3D.new()
+		eyemat.albedo_color = Color(0.05, 0.05, 0.05)
+		eye.material_override = eyemat
+		koala.add_child(eye)
+
+	# Nose
+	var nose = MeshInstance3D.new()
+	var nose_mesh = SphereMesh.new()
+	nose_mesh.radius = 0.05
+	nose_mesh.height = 0.04
+	nose.mesh = nose_mesh
+	nose.position = Vector3(0, 0.24, -0.24)
+	var nmat = StandardMaterial3D.new()
+	nmat.albedo_color = Color(0.1, 0.08, 0.08)
+	nose.material_override = nmat
+	koala.add_child(nose)
+
+	# Legs (4 short stubby legs)
+	for pos in [Vector3(-0.1, -0.18, -0.08), Vector3(0.1, -0.18, -0.08), Vector3(-0.1, -0.18, 0.08), Vector3(0.1, -0.18, 0.08)]:
+		var leg = MeshInstance3D.new()
+		var cyl = CylinderMesh.new()
+		cyl.top_radius = 0.04
+		cyl.bottom_radius = 0.04
+		cyl.height = 0.15
+		leg.mesh = cyl
+		leg.position = pos
+		var lmat = StandardMaterial3D.new()
+		lmat.albedo_color = Color(0.45, 0.35, 0.25)
+		leg.material_override = lmat
+		koala.add_child(leg)
+
+	# Label
+	var label = Label3D.new()
+	label.text = "Koala"
+	label.font_size = 36
+	label.position.y = 0.7
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	koala.add_child(label)
+
+	add_child(koala)
+	_walking_koalas.append(koala)
+	_koala_targets.append(koala.position)
+	_koala_pauses.append(randf_range(1.0, 3.0))
+
 func _create_ui():
 	var ui = Control.new()
 	ui.anchor_right = 1.0
@@ -394,7 +497,8 @@ func _update_stats_display():
 	var xp_info = game_manager.get_xp_progress(pid)
 	var cap = game_manager.get_stat_cap(pid)
 	var xp_str = "XP: %d/%d" % [xp_info["current"], xp_info["next"]] if xp_info["next"] > 0 else "XP: MAX"
-	var koala_str = " [Koala Rider!]" if info.get("has_koala", false) else ""
+	var has_rider = info.get("has_koala", false) and info["type"] in ["unicorn", "pegasus", "dragon"]
+	var koala_str = " [Koala Rider!]" if has_rider else ""
 	_stats_label.text = "--- %s Lv%d (%s)%s --- Mood: %s\nHealth:    %d/%d\nHappiness: %d/%d\nHunger:    %d/%d\nEnergy:    %d/%d\n%s" % [
 		info["name"], info["level"], info["type"], koala_str, mood,
 		info["health"], cap, info["happiness"], cap, info["hunger"], cap, info["energy"], cap,
@@ -477,6 +581,27 @@ func _process(delta: float):
 		_rain_duration -= delta
 		if _rain_duration <= 0:
 			_stop_rain()
+
+	# Walking koala wandering
+	for i in range(_walking_koalas.size()):
+		var koala = _walking_koalas[i]
+		if _koala_pauses[i] > 0:
+			_koala_pauses[i] -= delta
+			# Gentle bob while paused
+			koala.position.y = 0.3 + sin(Time.get_ticks_msec() / 800.0 + i) * 0.03
+			continue
+		var target = _koala_targets[i]
+		var dist = Vector2(koala.position.x, koala.position.z).distance_to(Vector2(target.x, target.z))
+		if dist < 0.3:
+			_koala_pauses[i] = randf_range(2.0, 6.0)
+			_koala_targets[i] = Vector3(randf_range(-7, 7), 0.3, randf_range(-7, 7))
+		else:
+			var dir = Vector3(target.x - koala.position.x, 0, target.z - koala.position.z).normalized()
+			koala.position.x += dir.x * 0.4 * delta
+			koala.position.z += dir.z * 0.4 * delta
+			koala.position.y = 0.3 + sin(Time.get_ticks_msec() / 400.0 + i) * 0.04
+			if dir.length() > 0.01:
+				koala.rotation.y = lerp_angle(koala.rotation.y, atan2(dir.x, dir.z), delta * 3.0)
 
 	# WASD + Numpad + Arrow camera movement
 	var move_dir = Vector3.ZERO
