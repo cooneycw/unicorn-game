@@ -33,6 +33,13 @@ var pending_game: String = ""
 # Pet inspection — transient, not saved
 var inspecting_pet_id: int = -1
 
+# Adoption system
+var kindness_stars: int = 0
+var adopted_registry: Array = []  # Array of { pet_id, name, type, family, level, adopted_time }
+var postcards: Array = []  # Array of { pet_name, family, message, coins, read }
+
+signal kindness_stars_changed(new_amount: int)
+
 # Per-game level progression (auto-advance, kids don't choose)
 var game_levels: Dictionary = {
 	"math": 1,
@@ -158,6 +165,30 @@ func _load_saved_data():
 
 	# Restore pending mini-game (force return to same game on ESC)
 	pending_game = str(data.get("pending_game", ""))
+
+	# Restore adoption data
+	kindness_stars = int(data.get("kindness_stars", 0))
+	var saved_registry = data.get("adopted_registry", [])
+	adopted_registry = []
+	for entry in saved_registry:
+		adopted_registry.append({
+			"pet_id": int(entry.get("pet_id", 0)),
+			"name": str(entry.get("name", "")),
+			"type": str(entry.get("type", "")),
+			"family": str(entry.get("family", "")),
+			"level": int(entry.get("level", 1)),
+			"adopted_time": float(entry.get("adopted_time", 0)),
+		})
+	var saved_postcards = data.get("postcards", [])
+	postcards = []
+	for pc in saved_postcards:
+		postcards.append({
+			"pet_name": str(pc.get("pet_name", "")),
+			"family": str(pc.get("family", "")),
+			"message": str(pc.get("message", "")),
+			"coins": int(pc.get("coins", 0)),
+			"read": bool(pc.get("read", false)),
+		})
 
 	# Restore achievements
 	var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
@@ -459,3 +490,70 @@ func get_active_pets() -> Dictionary:
 		if pets[pet_id].get("status", 0) == 0:  # ACTIVE
 			result[pet_id] = pets[pet_id]
 	return result
+
+func modify_kindness_stars(amount: int):
+	kindness_stars = max(0, kindness_stars + amount)
+	kindness_stars_changed.emit(kindness_stars)
+
+func adopt_pet(pet_id: int, family_name: String) -> bool:
+	if pet_id not in pets:
+		return false
+	var pet = pets[pet_id]
+	if pet.get("status", 0) != 0:  # not ACTIVE
+		return false
+
+	# Record in adopted registry before changing status
+	adopted_registry.append({
+		"pet_id": pet_id,
+		"name": pet["name"],
+		"type": pet["type"],
+		"family": family_name,
+		"level": pet["level"],
+		"adopted_time": Time.get_unix_time_from_system(),
+	})
+
+	# Transition pet status
+	var pop_manager = get_tree().root.get_node_or_null("PetPopulationManager")
+	if pop_manager:
+		pop_manager.transition_pet(pet_id, 2)  # Status.ADOPTED
+	else:
+		pet["status"] = 2
+
+	# Rewards
+	var coin_reward = 15 + pet["level"] * 2
+	modify_coins(coin_reward)
+	modify_kindness_stars(1)
+
+	# Generate a "thank you" postcard that arrives immediately
+	_generate_postcard(pet["name"], family_name)
+
+	return true
+
+func _generate_postcard(pet_name: String, family_name: String):
+	var messages = [
+		"%s loves their new garden! The %s family sends their thanks." % [pet_name, family_name],
+		"The %s family says %s is settling in wonderfully!" % [family_name, pet_name],
+		"%s made a new friend at the %s house! Here's a little gift." % [pet_name, family_name],
+		"The %s family built %s a cozy bed. They're so happy!" % [family_name, pet_name],
+		"%s has been playing in the park near the %s home every day!" % [pet_name, family_name],
+	]
+	postcards.append({
+		"pet_name": pet_name,
+		"family": family_name,
+		"message": messages[randi() % messages.size()],
+		"coins": randi_range(3, 8),
+		"read": false,
+	})
+
+func get_unread_postcards() -> Array:
+	var unread = []
+	for pc in postcards:
+		if not pc["read"]:
+			unread.append(pc)
+	return unread
+
+func read_postcard(index: int):
+	if index >= 0 and index < postcards.size():
+		if not postcards[index]["read"]:
+			postcards[index]["read"] = true
+			modify_coins(postcards[index]["coins"])

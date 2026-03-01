@@ -54,6 +54,7 @@ unicorn, pegasus, dragon, alicorn, dogicorn, caticorn
 | `SudokuGame.tscn` | `SudokuGame.gd` | Sudoku (6 levels: 3x3 and 4x4, advance without hints) |
 | `SpellingGame.tscn` | `SpellingGame.gd` | Spelling bee (10 levels: tiny to expert words, advance on 6+ correct) |
 | `PetProfile.tscn` | `PetProfile.gd` | Pet inspect screen with 3D model, stats, rename |
+| `AdoptionCenter.tscn` | `AdoptionCenter.gd` | Adopt pets to families, Friends Book, postcards |
 | `AchievementScreen.tscn` | `AchievementScreen.gd` | Achievement gallery |
 
 ### Autoloaded Singletons
@@ -73,7 +74,7 @@ unicorn, pegasus, dragon, alicorn, dogicorn, caticorn
 ## Key Controls
 
 ### Hub
-UP/DOWN + SPACE to navigate, or hotkeys: Q(Island) V(Vet) G(Random Game) A(Achievements)
+UP/DOWN + SPACE to navigate, or hotkeys: Q(Island) V(Vet) G(Random Game) D(Adoption Center) A(Achievements)
 
 ### Island
 WASD or Arrow keys or Numpad 8/4/2/6 — camera movement, LEFT/RIGHT — select pet, F — feed, P — play, R — rest, E — collect egg, I — inspect pet, X — rename pet, ESC — back
@@ -102,3 +103,6 @@ M — mute/unmute audio, Ctrl+S — manual save
 - Pet lifecycle states: ACTIVE, ON_JOURNEY, ADOPTED, RETIRED, AT_ACADEMY (managed by PetPopulationManager)
 - Soft cap of 12 active pets; egg spawn interval increases dynamically with population (7min base + 45s per pet)
 - Only ACTIVE pets spawn on Island; non-active pets shown as summary count in Hub
+- Adoption Center sends pets to families; adopted pets remain viewable in Friends Book and send postcards
+- Kindness Stars currency earned by adopting pets; stored in GameManager alongside coins
+- Must have at least 2 active pets to adopt one out (prevents empty island)

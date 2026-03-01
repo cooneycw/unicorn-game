@@ -5,7 +5,7 @@ var game_manager
 var audio_manager
 var pop_manager
 var selected_menu_item = 0
-var menu_count = 4
+var menu_count = 5
 
 # Mini-game scenes for random selection
 const MINI_GAME_SCENES: Array = [
@@ -296,6 +296,12 @@ func _go_to_random_game():
 	var scene_path = MINI_GAME_SCENES[randi() % MINI_GAME_SCENES.size()]
 	get_tree().change_scene_to_file(scene_path)
 
+func _go_to_adoption_center():
+	var save_manager = get_tree().root.get_node_or_null("SaveManager")
+	if save_manager:
+		save_manager.on_scene_transition()
+	get_tree().change_scene_to_file("res://scenes/AdoptionCenter.tscn")
+
 func _go_to_achievements():
 	var save_manager = get_tree().root.get_node_or_null("SaveManager")
 	if save_manager:
@@ -306,10 +312,13 @@ func _update_menu_display():
 	if _menu_label == null:
 		return
 	var game_option = "Continue Game! (G)" if game_manager.pending_game != "" else "Play a Game! (G)  [random surprise]"
+	var unread_count = game_manager.get_unread_postcards().size()
+	var adopt_suffix = "  [%d new postcard%s!]" % [unread_count, "s" if unread_count != 1 else ""] if unread_count > 0 else ""
 	var options = [
 		"Visit Island (Q)",
 		"Visit Vet (V)",
 		game_option,
+		"Adoption Center (D)%s" % adopt_suffix,
 		"Achievements (A)"
 	]
 	var text = ""
@@ -348,6 +357,9 @@ func _input(event):
 		if event.keycode == KEY_G:
 			_go_to_random_game()
 			return
+		if event.keycode == KEY_D:
+			_go_to_adoption_center()
+			return
 		if event.keycode == KEY_A:
 			_go_to_achievements()
 			return
@@ -376,5 +388,7 @@ func _input(event):
 				2:
 					_go_to_random_game()
 				3:
+					_go_to_adoption_center()
+				4:
 					_go_to_achievements()
 			return

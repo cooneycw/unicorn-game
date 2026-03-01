@@ -40,6 +40,9 @@ func save_game():
 		"game_levels": gm.game_levels,
 		"pending_game": gm.pending_game,
 		"achievements": achievements,
+		"kindness_stars": gm.kindness_stars,
+		"adopted_registry": gm.adopted_registry,
+		"postcards": gm.postcards,
 	}
 
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
