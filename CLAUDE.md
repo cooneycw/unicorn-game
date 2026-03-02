@@ -37,9 +37,17 @@ Godot 4.3 / GDScript 3D pet simulation game. All visuals are procedurally genera
 
 ### Pet Types (6)
 
-unicorn, pegasus, dragon, alicorn, dogicorn, caticorn
+unicorn, pegasus, dragon, alicorn, dogicorn, caticorn (displays as "sloth" on macOS)
 
 ~20% of pets spawn with a koala rider.
+
+### macOS Differences
+
+- **Player character:** Boy (blue shirt, brown shorts, short hair, green eyes) instead of girl
+- **Caticorn → Sloth:** The 6th pet type displays as "sloth" with sloth visuals (round body, eye mask, claws, stubby tail) instead of cat features. Internal type remains "caticorn" for save compatibility.
+- **Starter pet:** "Sleepy" (sloth) instead of "Whiskers" (caticorn)
+- **Achievement:** "Sloth Lover" instead of "Cat Lover"
+- Platform detected at runtime via `GameManager.is_macos()` / `GameManager.display_type()`
 
 ### Scenes & Scripts
 

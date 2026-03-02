@@ -252,7 +252,7 @@ func _update_stats():
 	var emoji = game_manager.get_mood_emoji(_pet_id)
 
 	_name_label.text = "%s %s" % [info["name"], emoji]
-	_type_label.text = "%s — Mood: %s" % [info["type"].capitalize(), mood.capitalize()]
+	_type_label.text = "%s — Mood: %s" % [GameManager.display_type(info["type"]).capitalize(), mood.capitalize()]
 	_level_label.text = "Level %d" % info["level"]
 
 	if xp_info["next"] > 0:

@@ -89,7 +89,7 @@ func _create_ui():
 
 		var cap = game_manager.get_stat_cap(pet_id)
 		var pet_text = Label.new()
-		pet_text.text = "  %s (%s) - Health: %d/%d" % [pet_info["name"], pet_info["type"], pet_info["health"], cap]
+		pet_text.text = "  %s (%s) - Health: %d/%d" % [pet_info["name"], GameManager.display_type(pet_info["type"]), pet_info["health"], cap]
 		pet_text.position = Vector2(10, y_offset)
 		pet_text.name = "Pet_%d" % pet_id
 		ui.add_child(pet_text)
@@ -115,7 +115,7 @@ func _select_pet(pet_id: int):
 	var status_label = get_node("UI/StatusLabel")
 	status_label.text = "> Selected: %s (%s) — Mood: %s\n  Health: %d/%d\n  Happiness: %d/%d\n  Hunger: %d/%d\n  Energy: %d/%d\n\nPress H to heal, or UP/DOWN to choose another pet" % [
 		pet_info["name"],
-		pet_info["type"],
+		GameManager.display_type(pet_info["type"]),
 		mood,
 		pet_info["health"], cap,
 		pet_info["happiness"], cap,
@@ -130,9 +130,9 @@ func _select_pet(pet_id: int):
 		var pinfo = all_pets[pid]
 		var pcap = game_manager.get_stat_cap(pid)
 		if pid == pet_id:
-			pet_text.text = "> %s (%s) - Health: %d/%d" % [pinfo["name"], pinfo["type"], pinfo["health"], pcap]
+			pet_text.text = "> %s (%s) - Health: %d/%d" % [pinfo["name"], GameManager.display_type(pinfo["type"]), pinfo["health"], pcap]
 		else:
-			pet_text.text = "  %s (%s) - Health: %d/%d" % [pinfo["name"], pinfo["type"], pinfo["health"], pcap]
+			pet_text.text = "  %s (%s) - Health: %d/%d" % [pinfo["name"], GameManager.display_type(pinfo["type"]), pinfo["health"], pcap]
 
 func _heal_pet():
 	if selected_pet_id == null:
@@ -157,7 +157,7 @@ func _heal_pet():
 
 		var heal_cap = game_manager.get_stat_cap(selected_pet_id)
 		var pet_text = get_node("UI/Pet_%d" % selected_pet_id)
-		pet_text.text = "> %s (%s) - Health: %d/%d" % [pet_info["name"], pet_info["type"], pet_info["health"], heal_cap]
+		pet_text.text = "> %s (%s) - Health: %d/%d" % [pet_info["name"], GameManager.display_type(pet_info["type"]), pet_info["health"], heal_cap]
 
 		var achievement_mgr = get_tree().root.get_node_or_null("AchievementManager")
 		if achievement_mgr:

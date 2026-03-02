@@ -89,7 +89,15 @@ const NAME_SUFFIXES: Array = ["whisper", "beam", "hooves", "mane", "spark", "shi
 	"dancer", "song", "flight", "heart", "dust", "glow", "petal", "breeze", "storm",
 	"paws", "nose", "fur", "tail", "ears"]
 
-# Color variants per pet type
+static func is_macos() -> bool:
+	return OS.get_name() == "macOS"
+
+static func display_type(internal_type: String) -> String:
+	if is_macos() and internal_type == "caticorn":
+		return "sloth"
+	return internal_type
+
+# Color variants per pet type (caticorn colors also used for sloth on macOS)
 const COLOR_VARIANTS = {
 	"unicorn": [Color.WHITE, Color(1.0, 0.75, 0.8), Color(0.68, 0.85, 1.0), Color(1.0, 0.84, 0.0)],
 	"pegasus": [Color.LIGHT_GRAY, Color(0.75, 0.75, 0.75), Color(0.53, 0.81, 0.92), Color(0.73, 0.56, 0.87)],
@@ -98,6 +106,9 @@ const COLOR_VARIANTS = {
 	"dogicorn": [Color(0.72, 0.53, 0.34), Color(0.95, 0.87, 0.73), Color(0.3, 0.3, 0.3), Color(1.0, 0.85, 0.6)],
 	"caticorn": [Color(0.95, 0.6, 0.2), Color(0.2, 0.2, 0.2), Color(0.85, 0.85, 0.85), Color(0.75, 0.55, 0.35)],
 }
+
+# Sloth color variants used on macOS instead of caticorn colors
+const SLOTH_COLOR_VARIANTS = [Color(0.55, 0.4, 0.25), Color(0.65, 0.55, 0.4), Color(0.4, 0.35, 0.3), Color(0.7, 0.6, 0.45)]
 
 func _ready():
 	_load_saved_data()
@@ -446,7 +457,7 @@ func set_color_variant(pet_id: int, variant: int) -> bool:
 		return false
 	if coins < 50:
 		return false
-	var type_variants = COLOR_VARIANTS.get(pet["type"], [])
+	var type_variants = SLOTH_COLOR_VARIANTS if is_macos() and pet["type"] == "caticorn" else COLOR_VARIANTS.get(pet["type"], [])
 	if variant < 0 or variant >= type_variants.size():
 		return false
 	modify_coins(-50)
@@ -458,7 +469,7 @@ func get_pet_color(pet_id: int) -> Color:
 	if pet_id not in pets:
 		return Color.WHITE
 	var pet = pets[pet_id]
-	var type_variants = COLOR_VARIANTS.get(pet["type"], [Color.WHITE])
+	var type_variants = SLOTH_COLOR_VARIANTS if is_macos() and pet["type"] == "caticorn" else COLOR_VARIANTS.get(pet["type"], [Color.WHITE])
 	var variant = pet["color_variant"]
 	if variant >= 0 and variant < type_variants.size():
 		return type_variants[variant]
