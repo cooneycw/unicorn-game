@@ -3,9 +3,12 @@ extends Node
 # Autoloaded singleton — handles save/load to user://save_data.json + CSV export
 
 const SAVE_PATH = "user://save_data.json"
+const SAVE_TMP_PATH = "user://save_data.tmp"
+const SAVE_BAK_PATH = "user://save_data.json.bak"
 const CSV_PATH = "user://pets_export.csv"
 const SAVE_VERSION = 4
 const AUTO_SAVE_INTERVAL = 60.0
+const VALID_PET_TYPES: Array = ["unicorn", "pegasus", "dragon", "alicorn", "dogicorn", "caticorn"]
 
 signal game_saved
 
@@ -46,12 +49,26 @@ func save_game():
 		"active_journeys": gm.active_journeys,
 	}
 
-	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	# Atomic save: write to .tmp first, then rotate backup, then rename
+	var file = FileAccess.open(SAVE_TMP_PATH, FileAccess.WRITE)
 	if file == null:
-		push_warning("SaveManager: Could not open save file for writing.")
+		push_warning("SaveManager: Could not open temp save file for writing.")
 		return
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
+
+	# Rotate backup: current save → .bak
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.copy_absolute(
+			ProjectSettings.globalize_path(SAVE_PATH),
+			ProjectSettings.globalize_path(SAVE_BAK_PATH)
+		)
+
+	# Atomic rename: .tmp → .json
+	DirAccess.rename_absolute(
+		ProjectSettings.globalize_path(SAVE_TMP_PATH),
+		ProjectSettings.globalize_path(SAVE_PATH)
+	)
 
 	# Also export CSV
 	_export_csv(gm)
@@ -88,29 +105,82 @@ func _export_csv(gm):
 	file.close()
 
 func load_game() -> Dictionary:
-	if not FileAccess.file_exists(SAVE_PATH):
+	var data = _try_load_file(SAVE_PATH)
+	if data.is_empty() and FileAccess.file_exists(SAVE_BAK_PATH):
+		push_warning("SaveManager: Primary save failed, trying backup...")
+		data = _try_load_file(SAVE_BAK_PATH)
+		if not data.is_empty():
+			print("SaveManager: Recovered from backup save.")
+
+	if not data.is_empty():
+		_validate_save_data(data)
+
+	return data
+
+func _try_load_file(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
 		return {}
 
-	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var file = FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		push_warning("SaveManager: Could not open save file for reading.")
+		push_warning("SaveManager: Could not open %s for reading." % path)
 		return {}
 
 	var text = file.get_as_text()
 	file.close()
 
+	if text.strip_edges().is_empty():
+		push_warning("SaveManager: %s is empty." % path)
+		return {}
+
 	var json = JSON.new()
 	var err = json.parse(text)
 	if err != OK:
-		push_warning("SaveManager: Corrupt save file, starting fresh.")
+		push_warning("SaveManager: Corrupt file %s, skipping." % path)
 		return {}
 
 	var data = json.data
 	if not data is Dictionary:
-		push_warning("SaveManager: Save data is not a dictionary, starting fresh.")
+		push_warning("SaveManager: %s is not a dictionary, skipping." % path)
 		return {}
 
 	return data
+
+func _validate_save_data(data: Dictionary):
+	# Validate coins
+	data["coins"] = max(0, int(data.get("coins", 50)))
+	data["total_coins_earned"] = max(0, int(data.get("total_coins_earned", 0)))
+	data["kindness_stars"] = max(0, int(data.get("kindness_stars", 0)))
+
+	# Validate pet data
+	var pets_data = data.get("pets", {})
+	for key in pets_data.keys():
+		var pet = pets_data[key]
+		if not pet is Dictionary:
+			pets_data.erase(key)
+			continue
+		var level = clampi(int(pet.get("level", 1)), 1, 100)
+		var cap = 100 + level * 5
+		pet["level"] = level
+		pet["xp"] = max(0, int(pet.get("xp", 0)))
+		pet["health"] = clampi(int(pet.get("health", 100)), 0, cap)
+		pet["happiness"] = clampi(int(pet.get("happiness", 100)), 0, cap)
+		pet["hunger"] = clampi(int(pet.get("hunger", 50)), 0, cap)
+		pet["energy"] = clampi(int(pet.get("energy", 100)), 0, cap)
+		pet["name"] = sanitize_name(str(pet.get("name", "Pet")))
+
+func sanitize_name(raw_name: String) -> String:
+	# Strip BBCode tags and limit length
+	var clean = raw_name
+	var regex = RegEx.new()
+	regex.compile("\\[.*?\\]")
+	clean = regex.sub(clean, "", true)
+	clean = clean.strip_edges()
+	if clean.length() > 20:
+		clean = clean.substr(0, 20)
+	if clean.is_empty():
+		clean = "Pet"
+	return clean
 
 func import_pets_from_csv() -> Dictionary:
 	# Fallback import: recover pets from old pets_export.csv when JSON save is missing.

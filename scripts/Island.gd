@@ -1034,11 +1034,15 @@ func _start_rename():
 func _finish_rename():
 	if _rename_buffer.length() > 0 and pet_ids.size() > 0:
 		var pid = pet_ids[selected_pet_index]
-		game_manager.pets[pid]["name"] = _rename_buffer
+		var save_manager = get_tree().root.get_node_or_null("SaveManager")
+		var clean_name = _rename_buffer
+		if save_manager:
+			clean_name = save_manager.sanitize_name(_rename_buffer)
+		game_manager.pets[pid]["name"] = clean_name
 		# Update the Pet node's name too
 		if selected_pet_index < pets_in_scene.size():
-			pets_in_scene[selected_pet_index].pet_name = _rename_buffer
-		_show_feedback("Renamed to '%s'!" % _rename_buffer)
+			pets_in_scene[selected_pet_index].pet_name = clean_name
+		_show_feedback("Renamed to '%s'!" % clean_name)
 		_highlight_selected()
 		_update_stats_display()
 	_renaming = false

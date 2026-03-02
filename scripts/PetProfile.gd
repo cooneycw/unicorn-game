@@ -299,10 +299,14 @@ func _start_rename():
 
 func _finish_rename():
 	if _rename_buffer.length() > 0:
-		game_manager.pets[_pet_id]["name"] = _rename_buffer
+		var save_manager = get_tree().root.get_node_or_null("SaveManager")
+		var clean_name = _rename_buffer
+		if save_manager:
+			clean_name = save_manager.sanitize_name(_rename_buffer)
+		game_manager.pets[_pet_id]["name"] = clean_name
 		if _pet_node:
-			_pet_node.pet_name = _rename_buffer
-		_feedback_label.text = "Renamed to '%s'!" % _rename_buffer
+			_pet_node.pet_name = clean_name
+		_feedback_label.text = "Renamed to '%s'!" % clean_name
 	_renaming = false
 	_rename_label.visible = false
 	_rename_buffer = ""
