@@ -45,7 +45,7 @@ func _build_ui():
 	vbox.add_child(grid)
 
 	for achievement_id in _achievement_manager.ACHIEVEMENTS.keys():
-		var info = _achievement_manager.ACHIEVEMENTS[achievement_id]
+		var info = _achievement_manager.get_display_info(achievement_id)
 		var unlocked = _achievement_manager.is_unlocked(achievement_id)
 
 		var row = HBoxContainer.new()

@@ -5,7 +5,7 @@ class_name Pet
 
 var pet_id: int
 var pet_name: String
-var pet_type: String  # "unicorn", "pegasus", "dragon", "alicorn", "dogicorn", "caticorn"
+var pet_type: String  # "unicorn", "pegasus", "dragon", "alicorn", "dogicorn", "caticorn" (caticorn displays as "sloth" on macOS)
 
 var _game_manager
 var _audio_manager
@@ -106,9 +106,14 @@ func _build_body():
 			sphere_mesh.height = 0.9
 			_body_mesh.scale = Vector3(1.1, 0.85, 1.3)  # stocky
 		"caticorn":
-			sphere_mesh.radius = 0.4
-			sphere_mesh.height = 0.75
-			_body_mesh.scale = Vector3(0.9, 0.95, 1.4)  # sleek and long
+			if GameManager.is_macos():
+				sphere_mesh.radius = 0.45
+				sphere_mesh.height = 0.85
+				_body_mesh.scale = Vector3(1.1, 0.9, 1.1)  # round, chunky sloth
+			else:
+				sphere_mesh.radius = 0.4
+				sphere_mesh.height = 0.75
+				_body_mesh.scale = Vector3(0.9, 0.95, 1.4)  # sleek and long cat
 		_:
 			sphere_mesh.radius = 0.45
 			sphere_mesh.height = 0.8
@@ -132,9 +137,14 @@ func _build_head():
 			head.height = 0.55
 			_head_mesh.position = Vector3(0, 0.3, -0.4)
 		"caticorn":
-			head.radius = 0.22
-			head.height = 0.44
-			_head_mesh.position = Vector3(0, 0.38, -0.38)
+			if GameManager.is_macos():
+				head.radius = 0.25
+				head.height = 0.48
+				_head_mesh.position = Vector3(0, 0.35, -0.35)  # rounder sloth face
+			else:
+				head.radius = 0.22
+				head.height = 0.44
+				_head_mesh.position = Vector3(0, 0.38, -0.38)
 		"dragon":
 			head.radius = 0.25
 			head.height = 0.5
@@ -163,14 +173,19 @@ func _build_head():
 			eye_z = -0.58
 			eye_y = 0.35
 		"caticorn":
-			eye_z = -0.52
-			eye_y = 0.4
+			if GameManager.is_macos():
+				eye_z = -0.50
+				eye_y = 0.38  # sleepy sloth eyes
+			else:
+				eye_z = -0.52
+				eye_y = 0.4
 
+	var _is_sloth = GameManager.is_macos() and pet_type == "caticorn"
 	for side in [-1.0, 1.0]:
 		var eye = MeshInstance3D.new()
 		var eye_mesh = SphereMesh.new()
-		eye_mesh.radius = 0.05
-		eye_mesh.height = 0.1
+		eye_mesh.radius = 0.035 if _is_sloth else 0.05  # smaller sleepy eyes for sloth
+		eye_mesh.height = 0.05 if _is_sloth else 0.1
 		eye.mesh = eye_mesh
 		eye.position = Vector3(side * 0.1, eye_y, eye_z)
 
@@ -197,19 +212,28 @@ func _build_legs():
 				Vector3(0.25, -0.42, 0.25),
 			]
 		"caticorn":
-			leg_positions = [
-				Vector3(-0.18, -0.45, -0.25),
-				Vector3(0.18, -0.45, -0.25),
-				Vector3(-0.18, -0.45, 0.3),
-				Vector3(0.18, -0.45, 0.3),
-			]
+			if GameManager.is_macos():
+				leg_positions = [  # shorter, stubbier sloth legs
+					Vector3(-0.22, -0.4, -0.2),
+					Vector3(0.22, -0.4, -0.2),
+					Vector3(-0.22, -0.4, 0.25),
+					Vector3(0.22, -0.4, 0.25),
+				]
+			else:
+				leg_positions = [
+					Vector3(-0.18, -0.45, -0.25),
+					Vector3(0.18, -0.45, -0.25),
+					Vector3(-0.18, -0.45, 0.3),
+					Vector3(0.18, -0.45, 0.3),
+				]
 
+	var _sloth_legs = GameManager.is_macos() and pet_type == "caticorn"
 	for pos in leg_positions:
 		var leg = MeshInstance3D.new()
 		var cyl = CylinderMesh.new()
-		cyl.top_radius = 0.06
-		cyl.bottom_radius = 0.06
-		cyl.height = 0.3
+		cyl.top_radius = 0.07 if _sloth_legs else 0.06  # thicker sloth limbs
+		cyl.bottom_radius = 0.07 if _sloth_legs else 0.06
+		cyl.height = 0.22 if _sloth_legs else 0.3  # shorter sloth legs
 		leg.mesh = cyl
 		leg.position = pos
 
@@ -224,6 +248,8 @@ func _build_horn():
 		return  # dragons get dragon horns in _build_type_features()
 	if pet_type == "pegasus":
 		return  # pegasus has no horn (winged horse)
+	if GameManager.is_macos() and pet_type == "caticorn":
+		return  # sloths have no horn
 
 	var horn = MeshInstance3D.new()
 	var cone_mesh = CylinderMesh.new()
@@ -281,7 +307,10 @@ func _build_type_features():
 		"dogicorn":
 			_build_dog_features()
 		"caticorn":
-			_build_cat_features()
+			if GameManager.is_macos():
+				_build_sloth_features()
+			else:
+				_build_cat_features()
 
 func _build_mane(colors: Array):
 	# Flowing mane along neck — series of small spheres
@@ -634,6 +663,81 @@ func _build_cat_features():
 			whisker.material_override = w_mat
 			add_child(whisker)
 
+func _build_sloth_features():
+	# Round ears (small, flat against head)
+	for side in [-1.0, 1.0]:
+		var ear = MeshInstance3D.new()
+		var ear_mesh = SphereMesh.new()
+		ear_mesh.radius = 0.06
+		ear_mesh.height = 0.05
+		ear.mesh = ear_mesh
+		ear.position = Vector3(side * 0.18, 0.42, -0.32)
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = _get_pet_color().darkened(0.15)
+		ear.material_override = mat
+		if side < 0:
+			_ear_l = ear
+		else:
+			_ear_r = ear
+		add_child(ear)
+
+	# Dark eye mask patches (characteristic sloth face marking)
+	for side in [-1.0, 1.0]:
+		var patch = MeshInstance3D.new()
+		var patch_mesh = SphereMesh.new()
+		patch_mesh.radius = 0.07
+		patch_mesh.height = 0.04
+		patch.mesh = patch_mesh
+		patch.position = Vector3(side * 0.08, 0.38, -0.48)
+		var patch_mat = StandardMaterial3D.new()
+		patch_mat.albedo_color = Color(0.15, 0.1, 0.05)  # dark brown eye patches
+		patch.material_override = patch_mat
+		add_child(patch)
+
+	# Nose (small dark dot)
+	var nose = MeshInstance3D.new()
+	var nose_mesh = SphereMesh.new()
+	nose_mesh.radius = 0.03
+	nose_mesh.height = 0.03
+	nose.mesh = nose_mesh
+	nose.position = Vector3(0, 0.33, -0.52)
+	var nose_mat = StandardMaterial3D.new()
+	nose_mat.albedo_color = Color(0.1, 0.08, 0.05)
+	nose.material_override = nose_mat
+	add_child(nose)
+
+	# Long curved claws on each leg
+	for leg_pos in [Vector3(-0.22, -0.52, -0.2), Vector3(0.22, -0.52, -0.2), Vector3(-0.22, -0.52, 0.25), Vector3(0.22, -0.52, 0.25)]:
+		for ci in range(3):
+			var claw = MeshInstance3D.new()
+			var claw_mesh = CylinderMesh.new()
+			claw_mesh.top_radius = 0.0
+			claw_mesh.bottom_radius = 0.012
+			claw_mesh.height = 0.1
+			claw.mesh = claw_mesh
+			claw.position = leg_pos + Vector3((ci - 1) * 0.025, -0.02, -0.03)
+			claw.rotation.x = -0.4  # angled forward
+			var claw_mat = StandardMaterial3D.new()
+			claw_mat.albedo_color = Color(0.85, 0.8, 0.7)  # pale claws
+			claw.material_override = claw_mat
+			add_child(claw)
+
+	# Short stubby tail
+	_tail_node = Node3D.new()
+	_tail_node.position = Vector3(0, 0.0, 0.4)
+	_tail_node.name = "SlothTail"
+	var tail = MeshInstance3D.new()
+	var tail_mesh = SphereMesh.new()
+	tail_mesh.radius = 0.05
+	tail_mesh.height = 0.08
+	tail.mesh = tail_mesh
+	tail.position.y = 0.05
+	var tail_mat = StandardMaterial3D.new()
+	tail_mat.albedo_color = _get_pet_color().darkened(0.1)
+	tail.material_override = tail_mat
+	_tail_node.add_child(tail)
+	add_child(_tail_node)
+
 func _build_koala():
 	var koala_root = Node3D.new()
 	koala_root.position = Vector3(0, 0.55, 0.05)
@@ -839,10 +943,13 @@ func _process(delta: float):
 	if pet_type == "dogicorn" and _tail_node:
 		_tail_node.rotation.y = sin(_bob_time * 8.0) * 0.4
 
-	# Cat tail swish (slow, elegant)
+	# Cat tail swish / sloth tail wiggle
 	if pet_type == "caticorn" and _tail_node:
-		_tail_node.rotation.y = sin(_bob_time * 1.2) * 0.5
-		_tail_node.rotation.x = sin(_bob_time * 0.8) * 0.1
+		if GameManager.is_macos():
+			_tail_node.rotation.y = sin(_bob_time * 0.5) * 0.15  # very slow, subtle sloth tail
+		else:
+			_tail_node.rotation.y = sin(_bob_time * 1.2) * 0.5
+			_tail_node.rotation.x = sin(_bob_time * 0.8) * 0.1
 
 	# Equine tail sway (unicorn, pegasus, alicorn)
 	if pet_type in ["unicorn", "pegasus", "alicorn"] and _tail_node:
@@ -1011,6 +1118,6 @@ func _get_pet_color() -> Color:
 		"dogicorn":
 			return Color(0.72, 0.53, 0.34)
 		"caticorn":
-			return Color(0.95, 0.6, 0.2)
+			return Color(0.55, 0.4, 0.25) if GameManager.is_macos() else Color(0.95, 0.6, 0.2)
 		_:
 			return Color.WHITE

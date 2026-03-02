@@ -68,10 +68,10 @@ var _clouds: Array = []
 var _camera: Camera3D
 const CAMERA_BOUNDS: float = 14.0
 
-# Player character (girl)
-var _girl: Node3D
-const GIRL_SPEED: float = 5.0
-const GIRL_Y: float = -0.45  # ground level (ground plane at y=-1, girl feet on ground)
+# Player character (girl on Windows, boy on macOS)
+var _player: Node3D
+const PLAYER_SPEED: float = 5.0
+const PLAYER_Y: float = -0.45  # ground level (ground plane at y=-1, player feet on ground)
 const BUMP_RADIUS: float = 1.2
 const BUMP_FORCE: float = 3.0
 
@@ -139,14 +139,14 @@ func _create_island_environment():
 	_sun_light.light_color = Color(1.0, 0.95, 0.8)
 	add_child(_sun_light)
 
-	# Player character — girl on the ground
-	_girl = Node3D.new()
-	_girl.position = Vector3(0, GIRL_Y, 0)
-	_girl.name = "Girl"
-	_build_girl_model(_girl)
-	add_child(_girl)
+	# Player character — girl on Windows, boy on macOS
+	_player = Node3D.new()
+	_player.position = Vector3(0, PLAYER_Y, 0)
+	_player.name = "Boy" if GameManager.is_macos() else "Girl"
+	_build_player_model(_player)
+	add_child(_player)
 
-	# Camera follows girl from behind and above
+	# Camera follows player from behind and above
 	_camera = Camera3D.new()
 	_update_camera_follow()
 	add_child(_camera)
@@ -361,6 +361,12 @@ func _create_guild_board():
 
 	add_child(board_root)
 
+func _build_player_model(root: Node3D):
+	if GameManager.is_macos():
+		_build_boy_model(root)
+	else:
+		_build_girl_model(root)
+
 func _build_girl_model(root: Node3D):
 	# Dress / body (cone shape — cute simple dress)
 	var dress = MeshInstance3D.new()
@@ -453,12 +459,104 @@ func _build_girl_model(root: Node3D):
 		shoe.material_override = shoe_mat
 		root.add_child(shoe)
 
+func _build_boy_model(root: Node3D):
+	# T-shirt (cylinder — blue)
+	var shirt = MeshInstance3D.new()
+	var shirt_mesh = CylinderMesh.new()
+	shirt_mesh.top_radius = 0.18
+	shirt_mesh.bottom_radius = 0.2
+	shirt_mesh.height = 0.35
+	shirt.mesh = shirt_mesh
+	shirt.position.y = 0.38
+	var shirt_mat = StandardMaterial3D.new()
+	shirt_mat.albedo_color = Color(0.2, 0.45, 0.8)  # blue t-shirt
+	shirt.material_override = shirt_mat
+	root.add_child(shirt)
+
+	# Shorts (wider cylinder — brown)
+	var shorts = MeshInstance3D.new()
+	var shorts_mesh = CylinderMesh.new()
+	shorts_mesh.top_radius = 0.2
+	shorts_mesh.bottom_radius = 0.18
+	shorts_mesh.height = 0.2
+	shorts.mesh = shorts_mesh
+	shorts.position.y = 0.1
+	var shorts_mat = StandardMaterial3D.new()
+	shorts_mat.albedo_color = Color(0.45, 0.32, 0.18)  # brown shorts
+	shorts.material_override = shorts_mat
+	root.add_child(shorts)
+
+	# Head
+	var head = MeshInstance3D.new()
+	var head_mesh = SphereMesh.new()
+	head_mesh.radius = 0.18
+	head_mesh.height = 0.34
+	head.mesh = head_mesh
+	head.position.y = 0.78
+	var head_mat = StandardMaterial3D.new()
+	head_mat.albedo_color = Color(1.0, 0.87, 0.75)  # skin tone
+	head.material_override = head_mat
+	root.add_child(head)
+
+	# Hair (short, spiky — cap shape on top)
+	var hair = MeshInstance3D.new()
+	var hair_mesh = SphereMesh.new()
+	hair_mesh.radius = 0.19
+	hair_mesh.height = 0.2
+	hair.mesh = hair_mesh
+	hair.position = Vector3(0, 0.88, -0.02)
+	hair.scale = Vector3(1.0, 0.7, 1.1)
+	var hair_mat = StandardMaterial3D.new()
+	hair_mat.albedo_color = Color(0.25, 0.15, 0.05)  # dark brown hair
+	hair.material_override = hair_mat
+	root.add_child(hair)
+
+	# Eyes
+	for side in [-1.0, 1.0]:
+		var eye = MeshInstance3D.new()
+		var eye_mesh = SphereMesh.new()
+		eye_mesh.radius = 0.035
+		eye_mesh.height = 0.04
+		eye.mesh = eye_mesh
+		eye.position = Vector3(side * 0.07, 0.8, -0.16)
+		var eye_mat = StandardMaterial3D.new()
+		eye_mat.albedo_color = Color(0.2, 0.6, 0.3)  # green eyes
+		eye.material_override = eye_mat
+		root.add_child(eye)
+
+	# Legs
+	for side in [-1.0, 1.0]:
+		var leg = MeshInstance3D.new()
+		var leg_mesh = CylinderMesh.new()
+		leg_mesh.top_radius = 0.05
+		leg_mesh.bottom_radius = 0.05
+		leg_mesh.height = 0.3
+		leg.mesh = leg_mesh
+		leg.position = Vector3(side * 0.1, -0.1, 0)
+		var leg_mat = StandardMaterial3D.new()
+		leg_mat.albedo_color = Color(1.0, 0.87, 0.75)  # skin tone
+		leg.material_override = leg_mat
+		root.add_child(leg)
+
+	# Sneakers
+	for side in [-1.0, 1.0]:
+		var shoe = MeshInstance3D.new()
+		var shoe_mesh = SphereMesh.new()
+		shoe_mesh.radius = 0.065
+		shoe_mesh.height = 0.06
+		shoe.mesh = shoe_mesh
+		shoe.position = Vector3(side * 0.1, -0.25, -0.02)
+		var shoe_mat = StandardMaterial3D.new()
+		shoe_mat.albedo_color = Color(0.2, 0.35, 0.7)  # blue sneakers
+		shoe.material_override = shoe_mat
+		root.add_child(shoe)
+
 func _update_camera_follow():
-	if not _girl or not _camera:
+	if not _player or not _camera:
 		return
-	# Third-person camera: behind and above the girl
-	_camera.position = _girl.position + Vector3(0, 5, 6)
-	_camera.look_at(_girl.position + Vector3(0, 0.5, 0), Vector3.UP)
+	# Third-person camera: behind and above the player
+	_camera.position = _player.position + Vector3(0, 5, 6)
+	_camera.look_at(_player.position + Vector3(0, 0.5, 0), Vector3.UP)
 
 func _spawn_all_pets():
 	var all_pets = game_manager.get_active_pets()
@@ -697,7 +795,7 @@ func _highlight_selected():
 		var mood = game_manager.get_mood_emoji(pid)
 		var level = game_manager.get_level(pid)
 		var prefix = "> " if i == selected_pet_index else "  "
-		lines += "%s%s Lv%d (%s) %s\n" % [prefix, info["name"], level, info["type"], mood]
+		lines += "%s%s Lv%d (%s) %s\n" % [prefix, info["name"], level, GameManager.display_type(info["type"]), mood]
 	_pet_list_label.text = lines
 
 func _update_stats_display():
@@ -713,7 +811,7 @@ func _update_stats_display():
 	var has_rider = info.get("has_koala", false) and info["type"] in ["unicorn", "pegasus", "dragon"]
 	var koala_str = " [Koala Rider!]" if has_rider else ""
 	_stats_label.text = "--- %s Lv%d (%s)%s --- Mood: %s\nHealth:    %d/%d\nHappiness: %d/%d\nHunger:    %d/%d\nEnergy:    %d/%d\n%s" % [
-		info["name"], info["level"], info["type"], koala_str, mood,
+		info["name"], info["level"], GameManager.display_type(info["type"]), koala_str, mood,
 		info["health"], cap, info["happiness"], cap, info["hunger"], cap, info["energy"], cap,
 		xp_str
 	]
@@ -822,7 +920,7 @@ func _process(delta: float):
 			if dir.length() > 0.01:
 				koala.rotation.y = lerp_angle(koala.rotation.y, atan2(dir.x, dir.z), delta * 3.0)
 
-	# WASD + Numpad — move girl character
+	# WASD + Arrow keys + Numpad — move player character
 	var move_dir = Vector3.ZERO
 	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_KP_8):
 		move_dir.z -= 1
@@ -835,23 +933,23 @@ func _process(delta: float):
 
 	if move_dir.length() > 0:
 		move_dir = move_dir.normalized()
-		_girl.position.x += move_dir.x * GIRL_SPEED * delta
-		_girl.position.z += move_dir.z * GIRL_SPEED * delta
-		_girl.position.x = clampf(_girl.position.x, -CAMERA_BOUNDS, CAMERA_BOUNDS)
-		_girl.position.z = clampf(_girl.position.z, -CAMERA_BOUNDS + 5, CAMERA_BOUNDS + 5)
-		_girl.position.y = GIRL_Y
-		# Face movement direction
-		var target_angle = atan2(move_dir.x, move_dir.z)
-		_girl.rotation.y = lerp_angle(_girl.rotation.y, target_angle, delta * 8.0)
+		_player.position.x += move_dir.x * PLAYER_SPEED * delta
+		_player.position.z += move_dir.z * PLAYER_SPEED * delta
+		_player.position.x = clampf(_player.position.x, -CAMERA_BOUNDS, CAMERA_BOUNDS)
+		_player.position.z = clampf(_player.position.z, -CAMERA_BOUNDS + 5, CAMERA_BOUNDS + 5)
+		_player.position.y = PLAYER_Y
+		# Face movement direction (negate to match model's -Z forward)
+		var target_angle = atan2(-move_dir.x, -move_dir.z)
+		_player.rotation.y = lerp_angle(_player.rotation.y, target_angle, delta * 15.0)
 
-	# Camera follows girl
+	# Camera follows player
 	_update_camera_follow()
 
 	# Bump animals out of the way
 	for pet in pets_in_scene:
-		var dist = Vector2(_girl.position.x, _girl.position.z).distance_to(Vector2(pet.position.x, pet.position.z))
+		var dist = Vector2(_player.position.x, _player.position.z).distance_to(Vector2(pet.position.x, pet.position.z))
 		if dist < BUMP_RADIUS and dist > 0.01:
-			var push_dir = Vector3(pet.position.x - _girl.position.x, 0, pet.position.z - _girl.position.z).normalized()
+			var push_dir = Vector3(pet.position.x - _player.position.x, 0, pet.position.z - _player.position.z).normalized()
 			pet.position.x += push_dir.x * BUMP_FORCE * delta
 			pet.position.z += push_dir.z * BUMP_FORCE * delta
 
@@ -1239,7 +1337,7 @@ func _refresh_guild_display():
 			var pid = _eligible_pets[i]
 			var pet = game_manager.pets[pid]
 			var prefix = "> " if i == _guild_pet_index else "  "
-			text += "%s%s Lv%d (%s)\n" % [prefix, pet["name"], pet["level"], pet["type"]]
+			text += "%s%s Lv%d (%s)\n" % [prefix, pet["name"], pet["level"], GameManager.display_type(pet["type"])]
 
 	_guild_label.text = text
 

@@ -146,7 +146,7 @@ func _show_request_view():
 	_current_view = View.REQUESTS
 
 	var req = _current_request
-	var type_str = req["type"].capitalize() if req["type"] != "" else "any pet"
+	var type_str = GameManager.display_type(req["type"]).capitalize() if req["type"] != "" else "any pet"
 	var text = "A family is looking for a new friend!\n\n"
 	text += "The %s family from %s\n" % [req["family"], req["town"]]
 	text += "is hoping to adopt a %s %s.\n\n" % [req["trait"], type_str]
@@ -193,7 +193,7 @@ func _show_pet_select_view():
 		if _current_request["type"] != "" and info["type"] == _current_request["type"]:
 			match_str = " [Great match!]"
 
-		text += "%s%s %s Lv%d (%s) %s%s\n" % [prefix, mood, info["name"], level, info["type"], game_manager.get_pet_mood(pid), match_str]
+		text += "%s%s %s Lv%d (%s) %s%s\n" % [prefix, mood, info["name"], level, GameManager.display_type(info["type"]), game_manager.get_pet_mood(pid), match_str]
 
 	_main_label.text = text
 	_instructions_label.text = "UP/DOWN: Select pet  |  SPACE: Confirm adoption  |  ESC: Cancel"
@@ -231,7 +231,7 @@ func _show_friends_book():
 	var text = "Friends Book — Your Adopted Pets\n\n"
 	for entry in registry:
 		text += "%s (Lv%d %s) — Living with the %s family\n" % [
-			entry["name"], entry["level"], entry["type"].capitalize(), entry["family"]
+			entry["name"], entry["level"], GameManager.display_type(entry["type"]).capitalize(), entry["family"]
 		]
 	text += "\nTotal adoptions: %d" % registry.size()
 

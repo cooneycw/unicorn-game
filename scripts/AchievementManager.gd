@@ -29,6 +29,13 @@ const ACHIEVEMENTS = {
 var _unlocked: Array = []
 var _game_manager
 
+func get_display_info(achievement_id: String) -> Dictionary:
+	var info = ACHIEVEMENTS.get(achievement_id, {}).duplicate()
+	if GameManager.is_macos() and achievement_id == "cat_lover":
+		info["name"] = "Sloth Lover"
+		info["desc"] = "Own 3 sloths"
+	return info
+
 var _check_timer: float = 0.0
 
 func _ready():

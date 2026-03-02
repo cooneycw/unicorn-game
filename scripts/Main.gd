@@ -212,7 +212,7 @@ func _refresh_pet_list():
 
 		var koala_str = " [K]" if info.get("has_koala", false) else ""
 		var row = Label.new()
-		row.text = "%s %s Lv%d (%s)%s — %s%s" % [emoji, info["name"], level, info["type"], koala_str, mood, warning]
+		row.text = "%s %s Lv%d (%s)%s — %s%s" % [emoji, info["name"], level, GameManager.display_type(info["type"]), koala_str, mood, warning]
 
 		if lowest_val < 20:
 			row.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
@@ -241,11 +241,11 @@ func _update_egg_display():
 		var parts = []
 		for egg in eggs:
 			var mins = ceili(egg["time_remaining"] / 60.0)
-			parts.append("%s egg (~%dm)" % [egg["type"].capitalize(), mins])
+			parts.append("%s egg (~%dm)" % [GameManager.display_type(egg["type"]).capitalize(), mins])
 		_egg_label.text = "Eggs: %s" % ", ".join(parts)
 
 func _spawn_starting_pets():
-	var pet_names = ["Sparkle", "Rainbow", "Cloud", "Moonlight", "Biscuit", "Whiskers"]
+	var pet_names = ["Sparkle", "Rainbow", "Cloud", "Moonlight", "Biscuit", "Sleepy" if GameManager.is_macos() else "Whiskers"]
 	var pet_types = ["unicorn", "pegasus", "dragon", "alicorn", "dogicorn", "caticorn"]
 
 	# Create pet data first (before spawning visuals)
